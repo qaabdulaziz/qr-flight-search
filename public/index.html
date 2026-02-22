@@ -779,6 +779,7 @@
     originalDepart = departVal;
     originalReturn = returnVal;
     globalBest = null;
+    window._pairsDone = {};
 
     const btn = document.getElementById('searchBtn');
     btn.disabled = true;
@@ -887,18 +888,21 @@
         setRowState(origin, 'active', `Starting ${data.totalPairs} search${data.totalPairs > 1 ? 'es' : ''}...`);
 
       } else if (data.status === 'searching') {
-        const label = data.totalPairs > 1
-          ? `${fmtDate(data.depart)} → ${fmtDate(data.return)} — ${Math.round((data.pairIndex / data.totalPairs) * 100)}%`
-          : (data.detail || 'Searching...');
-        setRowState(origin, 'active', label);
+        // Just activate the row spinner — don't update % here (multiple pairs run in parallel
+        // so pairIndex jumps around; % is only updated on pair_done which fires sequentially)
+        setRowState(origin, 'active', data.totalPairs > 1 ? 'Searching...' : (data.detail || 'Searching...'));
 
       } else if (data.status === 'pair_done') {
         updateFlexBar(origin, data.pairIndex, data.totalPairs);
         if (data.totalPairs > 1) {
-          const pct = Math.round(((data.pairIndex + 1) / data.totalPairs) * 100);
+          // Track completed count per origin using a monotonically increasing counter
+          if (!window._pairsDone) window._pairsDone = {};
+          window._pairsDone[origin] = (window._pairsDone[origin] || 0) + 1;
+          const done = window._pairsDone[origin];
+          const pct = Math.min(Math.round((done / data.totalPairs) * 100), 99);
           const row = document.getElementById(`prog-${origin}`);
           const status = row?.querySelector('.progress-status');
-          if (status && pct < 100) status.textContent = `${pct}% complete`;
+          if (status && row.classList.contains('active')) status.textContent = `${pct}% complete`;
         }
 
       } else if (data.status === 'retrying') {
