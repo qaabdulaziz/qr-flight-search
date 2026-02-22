@@ -665,11 +665,13 @@
     }
   }
 
-  // Update flex progress bar for an origin
-  function updateFlexBar(origin, pairIndex, totalPairs) {
+  // Update flex progress bar for an origin — uses local completed count, never goes backwards
+  function updateFlexBar(origin, totalPairs) {
+    if (!totalPairs) return;
+    const done = (window._pairsDone && window._pairsDone[origin]) || 0;
+    const pct = Math.min(Math.round((done / totalPairs) * 100), 99);
     const fill = document.getElementById(`prog-${origin}`)?.querySelector('.progress-flex-fill');
-    if (!fill || totalPairs === 0) return;
-    fill.style.width = `${Math.round(((pairIndex + 1) / totalPairs) * 100)}%`;
+    if (fill) fill.style.width = pct + '%';
   }
 
   // ── Global best tracking ──────────────────────────────────────────────────
@@ -893,13 +895,12 @@
         setRowState(origin, 'active', data.totalPairs > 1 ? 'Searching...' : (data.detail || 'Searching...'));
 
       } else if (data.status === 'pair_done') {
-        updateFlexBar(origin, data.pairIndex, data.totalPairs);
+        if (!window._pairsDone) window._pairsDone = {};
+        window._pairsDone[origin] = (window._pairsDone[origin] || 0) + 1;
+        const done = window._pairsDone[origin];
+        const pct = Math.min(Math.round((done / data.totalPairs) * 100), 99);
+        updateFlexBar(origin, data.totalPairs);
         if (data.totalPairs > 1) {
-          // Track completed count per origin using a monotonically increasing counter
-          if (!window._pairsDone) window._pairsDone = {};
-          window._pairsDone[origin] = (window._pairsDone[origin] || 0) + 1;
-          const done = window._pairsDone[origin];
-          const pct = Math.min(Math.round((done / data.totalPairs) * 100), 99);
           const row = document.getElementById(`prog-${origin}`);
           const status = row?.querySelector('.progress-status');
           if (status && row.classList.contains('active')) status.textContent = `${pct}% complete`;
