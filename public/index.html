@@ -888,12 +888,18 @@
 
       } else if (data.status === 'searching') {
         const label = data.totalPairs > 1
-          ? `${fmtDate(data.depart)} → ${fmtDate(data.return)} (${data.pairIndex + 1}/${data.totalPairs})`
+          ? `${fmtDate(data.depart)} → ${fmtDate(data.return)} — ${Math.round((data.pairIndex / data.totalPairs) * 100)}%`
           : (data.detail || 'Searching...');
         setRowState(origin, 'active', label);
 
       } else if (data.status === 'pair_done') {
         updateFlexBar(origin, data.pairIndex, data.totalPairs);
+        if (data.totalPairs > 1) {
+          const pct = Math.round(((data.pairIndex + 1) / data.totalPairs) * 100);
+          const row = document.getElementById(`prog-${origin}`);
+          const status = row?.querySelector('.progress-status');
+          if (status && pct < 100) status.textContent = `${pct}% complete`;
+        }
 
       } else if (data.status === 'retrying') {
         setRowState(origin, 'retrying', data.detail || 'Retrying failed searches...');
