@@ -656,12 +656,12 @@
       icon.innerHTML = '<span class="progress-check">&#10003;</span>';
       status.textContent = statusText || 'Done';
       if (priceText) price.textContent = priceText;
-      if (fill) fill.style.width = '100%';
+      // Bar and % are set to 100 explicitly in lane_done, not here
     } else if (state === 'done-noresult') {
       row.classList.add('done-noresult');
       icon.innerHTML = '<span class="progress-x">-</span>';
       status.textContent = statusText || 'No flights';
-      if (fill) fill.style.width = '100%';
+      // Bar and % cleared in lane_done
     } else if (state === 'retrying') {
       row.classList.add('retrying');
       icon.innerHTML = '<span class="progress-retry">&#8635;</span>';
@@ -885,13 +885,17 @@
       updateProgressBar(data.completed, data.total);
     });
 
-    // DOH result — emitted whenever DOH finds a new best (may fire multiple times in flex mode)
+    // DOH result — fires each time DOH finds a cheaper date combo (may fire many times in flex)
+    // Only updates the live best price — does NOT mark DOH as done (lane_done does that)
     eventSource.addEventListener('doh_result', (e) => {
       const data = JSON.parse(e.data);
       if (data.found && data.cheapestUSD) {
-        setRowState('DOH', 'done', `Best: $${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
-      } else {
-        setRowState('DOH', 'done-noresult', 'No direct flights');
+        const row = document.getElementById('prog-DOH');
+        if (!row) return;
+        const price = row.querySelector('.progress-price');
+        const status = row.querySelector('.progress-status');
+        if (price) price.textContent = `$${fmt(data.cheapestUSD)}`;
+        if (status && !row.classList.contains('done')) status.textContent = `Best so far: $${fmt(data.cheapestUSD)}`;
       }
     });
 
