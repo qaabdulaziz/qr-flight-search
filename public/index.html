@@ -213,6 +213,14 @@
     .progress-row.active .progress-status { color: #9b9bb0; }
     .progress-row.done .progress-status { color: #5a8a5a; }
 
+    /* Per-origin % counter */
+    .progress-pct {
+      font-size: 12px; font-weight: 700; color: #555;
+      white-space: nowrap; width: 36px; text-align: right; flex-shrink: 0;
+    }
+    .progress-row.active .progress-pct { color: #9b1b5a; }
+    .progress-row.done .progress-pct { color: #2ecc71; }
+
     /* Flex progress bar per origin */
     .progress-flex-bar { width: 60px; flex-shrink: 0; }
     .progress-flex-track {
@@ -220,9 +228,9 @@
     }
     .progress-flex-fill {
       height: 100%; background: #7a1145; border-radius: 2px;
-      transition: width 0.3s; width: 0%;
+      transition: width 0.4s ease; width: 0%;
     }
-    .progress-row.done .progress-flex-fill { background: #2ecc71; }
+    .progress-row.done .progress-flex-fill { background: #2ecc71; width: 100% !important; }
 
     .progress-price { font-weight: 700; color: #555; white-space: nowrap; min-width: 70px; text-align: right; }
     .progress-row.done .progress-price { color: #2ecc71; }
@@ -665,13 +673,17 @@
     }
   }
 
-  // Update flex progress bar for an origin — uses local completed count, never goes backwards
-  function updateFlexBar(origin, totalPairs) {
+  // Update per-origin bar and % — uses local completed count only, never goes backwards
+  function updateOriginProgress(origin, totalPairs) {
     if (!totalPairs) return;
     const done = (window._pairsDone && window._pairsDone[origin]) || 0;
     const pct = Math.min(Math.round((done / totalPairs) * 100), 99);
-    const fill = document.getElementById(`prog-${origin}`)?.querySelector('.progress-flex-fill');
+    const row = document.getElementById(`prog-${origin}`);
+    if (!row) return;
+    const fill = row.querySelector('.progress-flex-fill');
+    const pctEl = row.querySelector('.progress-pct');
     if (fill) fill.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
   }
 
   // ── Global best tracking ──────────────────────────────────────────────────
@@ -821,8 +833,9 @@
     dohRow.innerHTML = `
       <div class="progress-icon"><span class="progress-wait">-</span></div>
       <div class="progress-origin">DOH</div>
-      <div class="progress-status">DOH non-stop benchmark — Waiting...</div>
-      ${isFlexSearch ? '<div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>' : ''}
+      <div class="progress-status">Waiting to start...</div>
+      <div class="progress-pct"></div>
+      <div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>
       <div class="progress-price"></div>`;
     rowsContainer.appendChild(dohRow);
 
@@ -835,8 +848,9 @@
       row.innerHTML = `
         <div class="progress-icon"><span class="progress-wait">-</span></div>
         <div class="progress-origin">${esc(code)}</div>
-        <div class="progress-status">${esc(name)} — Waiting...</div>
-        ${isFlexSearch ? '<div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>' : ''}
+        <div class="progress-status">Waiting to start...</div>
+        <div class="progress-pct"></div>
+        <div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>
         <div class="progress-price"></div>`;
       rowsContainer.appendChild(row);
     });
@@ -881,33 +895,52 @@
       }
     });
 
-    // flex_progress covers ALL lanes including DOH (replaces old 'progress' event)
+    // flex_progress covers ALL lanes including DOH
     eventSource.addEventListener('flex_progress', (e) => {
       const data = JSON.parse(e.data);
       const origin = data.origin;
+      const isDOH = !!data.isDOHDirect;
 
       if (data.status === 'lane_start') {
-        setRowState(origin, 'active', `Starting ${data.totalPairs} search${data.totalPairs > 1 ? 'es' : ''}...`);
+        const label = data.totalPairs > 1
+          ? `Scanning ${data.totalPairs} date combinations...`
+          : 'Opening ITA Matrix...';
+        setRowState(origin, 'active', label);
 
       } else if (data.status === 'searching') {
-        // Just activate the row spinner — don't update % here (multiple pairs run in parallel
-        // so pairIndex jumps around; % is only updated on pair_done which fires sequentially)
-        setRowState(origin, 'active', data.totalPairs > 1 ? 'Searching...' : (data.detail || 'Searching...'));
+        // Stage labels based on detail message from engine
+        let label = 'Opening ITA Matrix...';
+        const d = data.detail || '';
+        if (d.includes('Setting origin') || d.includes('Setting destination')) label = 'Entering flight details...';
+        else if (d.includes('Setting dates') || d.includes('Dates set'))       label = 'Setting dates...';
+        else if (d.includes('Routing') || d.includes('Cabin'))                 label = 'Configuring filters...';
+        else if (d.includes('Submitting') || d.includes('Searching'))          label = 'Waiting for results...';
+        else if (d.includes('Waiting for results'))                             label = 'Waiting for results...';
+        else if (d.includes('Cheapest') || d.includes('found'))                label = 'Parsing results...';
+        else if (d.includes('Launching'))                                       label = 'Launching browser...';
+        else if (d !== '')                                                      label = 'Searching...';
+        // Only update status text — never touch the % or bar here
+        const row = document.getElementById(`prog-${origin}`);
+        const statusEl = row?.querySelector('.progress-status');
+        if (statusEl && row?.classList.contains('active')) statusEl.textContent = label;
 
       } else if (data.status === 'pair_done') {
         if (!window._pairsDone) window._pairsDone = {};
         window._pairsDone[origin] = (window._pairsDone[origin] || 0) + 1;
-        const done = window._pairsDone[origin];
-        const pct = Math.min(Math.round((done / data.totalPairs) * 100), 99);
-        updateFlexBar(origin, data.totalPairs);
+        updateOriginProgress(origin, data.totalPairs);
+        // Update status to show we're moving to next pair
         if (data.totalPairs > 1) {
+          const done = window._pairsDone[origin];
+          const remaining = data.totalPairs - done;
           const row = document.getElementById(`prog-${origin}`);
-          const status = row?.querySelector('.progress-status');
-          if (status && row.classList.contains('active')) status.textContent = `${pct}% complete`;
+          const statusEl = row?.querySelector('.progress-status');
+          if (statusEl && row?.classList.contains('active')) {
+            statusEl.textContent = remaining > 0 ? `Scanning date combinations...` : 'Finalising...';
+          }
         }
 
       } else if (data.status === 'retrying') {
-        setRowState(origin, 'retrying', data.detail || 'Retrying failed searches...');
+        setRowState(origin, 'retrying', 'Retrying failed date searches...');
 
       } else if (data.status === 'lane_done') {
         if (data.found && data.cheapestUSD) {
@@ -915,6 +948,12 @@
         } else {
           setRowState(origin, 'done-noresult', 'No flights found');
         }
+        // Ensure bar and % show 100 on done
+        const row = document.getElementById(`prog-${origin}`);
+        const fill = row?.querySelector('.progress-flex-fill');
+        const pctEl = row?.querySelector('.progress-pct');
+        if (fill) fill.style.width = '100%';
+        if (pctEl) pctEl.textContent = data.found ? '100%' : '';
       }
     });
 
