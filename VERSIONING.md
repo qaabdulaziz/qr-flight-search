@@ -33,6 +33,9 @@ The version must be kept in sync across **3 places**:
 |---|---|---|
 | 1.0.0 | 2026-02 | Initial release — 5 origins, basic search, ITA Matrix automation |
 | 2.0.0 | 2026-02 | Security fixes (XSS), reliability (browser leak, DOM polling, retry logic), KWD/OMR currency support, code deduplication, input validation, dynamic default dates |
+| 3.0.0 | 2026-02 | Flexible date search — full grid ±1/2/3 days on both depart and return, finds absolute cheapest combination across all origins and all date pairs. Live global best price bar, per-origin flex progress bars, winning dates shown on result cards. v2 search preserved when flexDays=0. |
+| 3.1.0 | 2026-02 | Per-origin parallel lanes — each origin runs simultaneously in its own browser lane (date pairs sequential within lane). DOH also gets full flex grid search. Fixed progress counter (was stuck at 0). MAX_PARALLEL now acts as optional safety cap for low-RAM servers, defaults to one lane per origin. |
+| 3.2.0 | 2026-02 | Progress bar with % + ETA. Tied price handling — all date combos at same price shown on result card, headline picked as closest to original dates. PAIRS_PARALLEL_PER_LANE=2 (configurable) runs 2 date pairs per origin simultaneously, roughly halving search time. |
 
 ## Notes for AI agents
 

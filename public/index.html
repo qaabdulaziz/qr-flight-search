@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Business Class Finder v2.0.0</title>
+  <title>QR Business Class Finder v3.2.0</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -57,6 +57,34 @@
     }
     .btn-add:hover { background: #3a3a5a; }
 
+    /* ── Flexible Dates Toggle ── */
+    .flex-toggle-row {
+      margin-bottom: 16px; padding: 14px 16px;
+      background: #0f0f25; border: 1px solid #2a2a4a; border-radius: 10px;
+    }
+    .flex-toggle-header {
+      display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; width: fit-content;
+    }
+    .flex-toggle-header input[type="checkbox"] { width: 16px; height: 16px; accent-color: #9b1b5a; cursor: pointer; }
+    .flex-toggle-label { font-size: 14px; font-weight: 600; color: #ccc; }
+    .flex-toggle-desc { font-size: 11px; color: #666; margin-left: 26px; margin-top: 3px; }
+    .flex-options { display: none; margin-top: 12px; margin-left: 26px; }
+    .flex-options.visible { display: block; }
+    .flex-radio-group { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    .flex-radio-btn {
+      display: flex; align-items: center; gap: 6px;
+      padding: 7px 14px; background: #1a1a35; border: 1px solid #2a2a4a;
+      border-radius: 20px; cursor: pointer; font-size: 13px; user-select: none;
+    }
+    .flex-radio-btn input { display: none; }
+    .flex-radio-btn.selected { background: #1a0a30; border-color: #7a1145; color: #d44a8c; font-weight: 600; }
+    .flex-warning {
+      font-size: 11px; padding: 8px 12px; border-radius: 6px;
+      background: #1a1500; border: 1px solid #4a3a00; color: #c0a030;
+      display: none;
+    }
+    .flex-warning.visible { display: block; }
+
     .btn-search {
       width: 100%; padding: 14px;
       background: linear-gradient(135deg, #7a1145 0%, #9b1b5a 100%);
@@ -71,13 +99,80 @@
       padding: 4px 12px; background: #1a1a35; border: 1px solid #2a2a4a;
       border-radius: 12px; font-size: 11px; color: #9b9bb0; text-transform: uppercase; letter-spacing: 0.5px;
     }
+    .badge.flex-badge { border-color: #7a1145; color: #d44a8c; display: none; }
+    .badge.flex-badge.visible { display: inline-block; }
 
     /* ── Progress Dashboard ── */
     .progress-dashboard { display: none; margin-bottom: 20px; }
     .progress-dashboard-title {
       font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9b9bb0;
-      margin-bottom: 10px; letter-spacing: 0.5px;
+      margin-bottom: 6px; letter-spacing: 0.5px;
     }
+    .progress-counter {
+      font-size: 12px; color: #555; margin-bottom: 10px;
+    }
+    .progress-counter span { color: #9b1b5a; font-weight: 700; }
+
+    /* ── Total Progress Bar ── */
+    .total-progress-wrap {
+      margin-bottom: 12px; display: none;
+    }
+    .total-progress-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 6px;
+    }
+    .total-progress-pct {
+      font-size: 20px; font-weight: 700; color: #d44a8c;
+      transition: color 0.5s;
+    }
+    .total-progress-pct.done { color: #2ecc71; }
+    .total-progress-eta {
+      font-size: 12px; color: #666;
+    }
+    .total-progress-track {
+      width: 100%; height: 8px; background: #1e1e3a;
+      border-radius: 4px; overflow: hidden;
+    }
+    .total-progress-fill {
+      height: 100%; width: 0%;
+      background: linear-gradient(90deg, #7a1145, #d44a8c);
+      border-radius: 4px;
+      transition: width 0.4s ease, background 0.5s;
+    }
+    .total-progress-fill.done { background: #2ecc71; }
+    .total-progress-count {
+      font-size: 11px; color: #444; margin-top: 4px; text-align: right;
+    }
+
+    /* ── Tied dates on result cards ── */
+    .tied-dates-list {
+      margin-top: 6px; padding: 8px 10px;
+      background: #0f1520; border: 1px solid #2a3a4a;
+      border-radius: 6px; font-size: 11px; color: #5a8aaa;
+    }
+    .tied-dates-list .tied-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; color: #3a6a7a; margin-bottom: 4px;
+    }
+    .tied-date-item {
+      display: inline-block; margin: 2px 4px 2px 0;
+      padding: 2px 8px; background: #141f2a;
+      border: 1px solid #2a3a4a; border-radius: 10px;
+      color: #6aaabb; font-size: 11px;
+    }
+    .tied-date-item.headline {
+      border-color: #3a6a8a; color: #7bbfcc; font-weight: 600;
+    }
+
+    /* ── Global best price bar — shown during flex search ── */
+    .global-best-bar {
+      display: none; padding: 10px 16px; margin-bottom: 10px;
+      background: #0f2f1a; border: 1px solid #2ecc71; border-radius: 8px;
+      font-size: 13px; color: #7dc9a0;
+    }
+    .global-best-bar .best-price { font-size: 20px; font-weight: 700; color: #2ecc71; }
+    .global-best-bar .best-detail { font-size: 11px; color: #5a8a6a; margin-top: 2px; }
+
     .progress-row {
       display: flex; align-items: center; gap: 10px;
       padding: 8px 12px; margin-bottom: 4px;
@@ -109,9 +204,7 @@
     .progress-wait { color: #333; font-size: 16px; }
     .progress-retry { color: #f39c12; font-size: 12px; font-weight: 700; }
 
-    .progress-origin {
-      font-weight: 700; color: #bbb; width: 36px; flex-shrink: 0;
-    }
+    .progress-origin { font-weight: 700; color: #bbb; width: 36px; flex-shrink: 0; }
     .progress-row.doh .progress-origin { color: #7bbfee; }
     .progress-row.active .progress-origin { color: #d44a8c; }
     .progress-row.done .progress-origin { color: #2ecc71; }
@@ -120,51 +213,38 @@
     .progress-row.active .progress-status { color: #9b9bb0; }
     .progress-row.done .progress-status { color: #5a8a5a; }
 
-    .progress-price { font-weight: 700; color: #555; white-space: nowrap; }
+    /* Flex progress bar per origin */
+    .progress-flex-bar { width: 60px; flex-shrink: 0; }
+    .progress-flex-track {
+      height: 4px; background: #1e1e3a; border-radius: 2px; overflow: hidden;
+    }
+    .progress-flex-fill {
+      height: 100%; background: #7a1145; border-radius: 2px;
+      transition: width 0.3s; width: 0%;
+    }
+    .progress-row.done .progress-flex-fill { background: #2ecc71; }
+
+    .progress-price { font-weight: 700; color: #555; white-space: nowrap; min-width: 70px; text-align: right; }
     .progress-row.done .progress-price { color: #2ecc71; }
     .progress-row.doh.done .progress-price { color: #7bbfee; }
 
-    /* ── Results ── */
-    .results-section { display: none; }
-    .result-card {
-      background: #141428; border: 1px solid #2a2a4a; border-radius: 10px;
-      padding: 16px; margin-bottom: 10px;
-    }
-    .result-card.winner { border-color: #2ecc71; background: #0f1f15; }
-    .result-card.no-flights { opacity: 0.5; }
-    .result-header { display: flex; align-items: center; justify-content: space-between; }
-    .result-left { display: flex; align-items: center; gap: 12px; }
-    .result-rank { font-size: 20px; font-weight: 700; color: #555; width: 36px; text-align: center; }
-    .result-card.winner .result-rank { color: #2ecc71; }
-    .result-origin { font-size: 18px; font-weight: 700; color: #fff; }
-    .result-card.winner .result-origin { color: #2ecc71; }
-    .result-route { font-size: 12px; color: #777; margin-top: 2px; }
-    .result-price { text-align: right; }
-    .result-price-usd { font-size: 22px; font-weight: 700; color: #fff; }
-    .result-card.winner .result-price-usd { color: #2ecc71; }
-    .result-price-qar { font-size: 13px; color: #c0a050; margin-top: 1px; }
-    .result-price-local { font-size: 11px; color: #666; margin-top: 1px; }
-
-    .flight-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid #222240; }
-    .flight-leg { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; font-size: 13px; }
-    .leg-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #777; width: 60px; flex-shrink: 0; }
-    .leg-time { color: #ccc; font-weight: 600; white-space: nowrap; }
-    .leg-arrow { color: #555; }
-    .leg-duration { color: #888; font-size: 12px; }
-    .leg-stop { background: #1f1f3a; border: 1px solid #333358; border-radius: 4px; padding: 2px 6px; font-size: 10px; color: #d44a8c; }
-    .leg-route { color: #777; font-size: 11px; }
-
+    /* ── Winner Banner (flex search only) ── */
     .winner-banner {
-      background: linear-gradient(135deg, #0f2f1a 0%, #1a4028 100%);
-      border: 1px solid #2ecc71; border-radius: 10px; padding: 16px;
+      background: linear-gradient(135deg, #0a1f10 0%, #112a1a 100%);
+      border: 2px solid #2ecc71; border-radius: 12px; padding: 20px;
       text-align: center; margin-bottom: 16px; display: none;
     }
-    .winner-banner h2 { color: #2ecc71; font-size: 16px; font-weight: 700; }
-    .winner-banner .winner-price { font-size: 28px; font-weight: 700; color: #fff; margin-top: 4px; }
-    .winner-banner .winner-qar { font-size: 16px; color: #c0a050; margin-top: 2px; }
-    .winner-banner .winner-detail { font-size: 13px; color: #7dc9a0; margin-top: 4px; }
+    .winner-banner h2 { color: #2ecc71; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+    .winner-banner .winner-origin { font-size: 36px; font-weight: 700; color: #2ecc71; margin: 6px 0; }
+    .winner-banner .winner-price { font-size: 32px; font-weight: 700; color: #fff; }
+    .winner-banner .winner-qar { font-size: 16px; color: #c0a050; margin-top: 4px; }
+    .winner-banner .winner-dates {
+      font-size: 13px; color: #7dc9a0; margin-top: 8px; padding: 6px 14px;
+      background: #0f2f1a; border-radius: 20px; display: inline-block;
+    }
+    .winner-banner .winner-dates-orig { font-size: 11px; color: #4a8a5a; margin-top: 4px; }
 
-    /* ── Comparison Card: Winner vs DOH side-by-side ── */
+    /* ── Comparison Card ── */
     .comparison-section { display: none; margin-bottom: 20px; }
     .comparison-card {
       background: #141428; border: 1px solid #2a2a4a; border-radius: 12px; overflow: hidden;
@@ -175,26 +255,22 @@
       color: #9b9bb0; letter-spacing: 0.5px; text-align: center;
     }
     .comparison-body { display: flex; }
-    .comparison-side {
-      flex: 1; padding: 20px; text-align: center;
-    }
+    .comparison-side { flex: 1; padding: 20px; text-align: center; }
     .comparison-side.winner {
       background: linear-gradient(180deg, #0f2f1a 0%, #141428 100%);
       border-right: 1px solid #2a2a4a;
     }
-    .comparison-side.doh {
-      background: linear-gradient(180deg, #0f1520 0%, #141428 100%);
-    }
+    .comparison-side.doh { background: linear-gradient(180deg, #0f1520 0%, #141428 100%); }
     .comparison-label {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.5px; margin-bottom: 8px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
     }
     .comparison-side.winner .comparison-label { color: #2ecc71; }
     .comparison-side.doh .comparison-label { color: #4a9edd; }
     .comparison-origin { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
     .comparison-side.winner .comparison-origin { color: #2ecc71; }
     .comparison-side.doh .comparison-origin { color: #7bbfee; }
-    .comparison-route { font-size: 12px; color: #666; margin-bottom: 12px; }
+    .comparison-route { font-size: 11px; color: #666; margin-bottom: 4px; }
+    .comparison-dates { font-size: 11px; color: #4a7a5a; margin-bottom: 10px; }
     .comparison-price { font-size: 32px; font-weight: 700; color: #fff; }
     .comparison-price-qar { font-size: 14px; color: #c0a050; margin-top: 2px; }
     .comparison-versus {
@@ -202,18 +278,45 @@
       padding: 16px; background: #0d0d1a; border-top: 1px solid #2a2a4a;
     }
     .comparison-savings {
-      font-size: 15px; font-weight: 600;
-      padding: 8px 20px; border-radius: 20px;
+      font-size: 15px; font-weight: 600; padding: 8px 20px; border-radius: 20px;
     }
-    .comparison-savings.cheaper {
-      background: #0f2f1a; border: 1px solid #2ecc71; color: #2ecc71;
+    .comparison-savings.cheaper { background: #0f2f1a; border: 1px solid #2ecc71; color: #2ecc71; }
+    .comparison-savings.pricier { background: #1a1a0a; border: 1px solid #f39c12; color: #f39c12; }
+    .comparison-savings.same { background: #1a1a2a; border: 1px solid #555; color: #888; }
+
+    /* ── Results ── */
+    .results-section { display: none; }
+    .result-card {
+      background: #141428; border: 1px solid #2a2a4a; border-radius: 10px;
+      padding: 16px; margin-bottom: 10px;
     }
-    .comparison-savings.pricier {
-      background: #1a1a0a; border: 1px solid #f39c12; color: #f39c12;
+    .result-card.winner { border-color: #2ecc71; background: #0f1f15; }
+    .result-header { display: flex; align-items: center; justify-content: space-between; }
+    .result-left { display: flex; align-items: center; gap: 12px; }
+    .result-rank { font-size: 20px; font-weight: 700; color: #555; width: 36px; text-align: center; }
+    .result-card.winner .result-rank { color: #2ecc71; }
+    .result-origin { font-size: 18px; font-weight: 700; color: #fff; }
+    .result-card.winner .result-origin { color: #2ecc71; }
+    .result-route { font-size: 12px; color: #777; margin-top: 2px; }
+    .result-winning-dates {
+      font-size: 11px; margin-top: 3px; padding: 2px 8px;
+      background: #0f2f1a; border-radius: 10px; color: #4a9a6a; display: inline-block;
     }
-    .comparison-savings.same {
-      background: #1a1a2a; border: 1px solid #555; color: #888;
-    }
+    .result-winning-dates.shifted { background: #1a200a; color: #8aaa4a; }
+    .result-price { text-align: right; }
+    .result-price-usd { font-size: 22px; font-weight: 700; color: #fff; }
+    .result-card.winner .result-price-usd { color: #2ecc71; }
+    .result-price-qar { font-size: 13px; color: #c0a050; margin-top: 1px; }
+    .result-price-local { font-size: 11px; color: #666; margin-top: 1px; }
+
+    .flight-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid #222240; }
+    .flight-leg { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; font-size: 13px; flex-wrap: wrap; }
+    .leg-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #777; width: 60px; flex-shrink: 0; }
+    .leg-time { color: #ccc; font-weight: 600; white-space: nowrap; }
+    .leg-arrow { color: #555; }
+    .leg-duration { color: #888; font-size: 12px; }
+    .leg-stop { background: #1f1f3a; border: 1px solid #333358; border-radius: 4px; padding: 2px 6px; font-size: 10px; color: #d44a8c; }
+    .leg-route { color: #777; font-size: 11px; }
 
     .notes {
       background: #141428; border: 1px solid #2a2a4a; border-radius: 10px;
@@ -221,35 +324,11 @@
     }
     .notes strong { color: #aaa; }
 
-    /* ── DOH Direct ── */
-    .doh-section { display: none; margin-top: 24px; }
-    .doh-section-title {
-      font-size: 11px; font-weight: 700; text-transform: uppercase; color: #777;
-      letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
-    }
-    .doh-section-title::before, .doh-section-title::after { content: ''; flex: 1; height: 1px; background: #222240; }
-    .doh-card { background: #141428; border: 1px solid #2a3a5a; border-radius: 10px; padding: 16px; }
-    .doh-header { display: flex; align-items: center; justify-content: space-between; }
-    .doh-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #4a9edd; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .doh-origin { font-size: 18px; font-weight: 700; color: #7bbfee; }
-    .doh-route { font-size: 12px; color: #556a80; margin-top: 2px; }
-    .doh-price { text-align: right; }
-    .doh-price-usd { font-size: 22px; font-weight: 700; color: #7bbfee; }
-    .doh-price-qar { font-size: 13px; color: #c0a050; margin-top: 1px; }
-    .doh-price-local { font-size: 11px; color: #556a80; margin-top: 1px; }
-
-    .savings-banner { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; }
-    .savings-banner.cheaper { background: #0f2a0f; border: 1px solid #2ecc71; color: #7dc9a0; }
-    .savings-banner.pricier { background: #1a1a0a; border: 1px solid #f39c12; color: #c9a050; }
-    .savings-banner.same { background: #141428; border: 1px solid #3a3a5a; color: #888; }
-    .savings-banner strong { color: #fff; }
-
     @media (max-width: 480px) {
       .container { padding: 12px; }
       .search-form { padding: 16px; }
       .result-price-usd { font-size: 18px; }
-      .winner-banner .winner-price { font-size: 22px; }
-      .flight-leg { flex-wrap: wrap; gap: 6px; }
+      .comparison-price { font-size: 24px; }
     }
   </style>
 </head>
@@ -267,18 +346,45 @@
     <span class="badge">Business Class</span>
     <span class="badge">Via Doha (DOH)</span>
     <span class="badge">Powered by ITA Matrix</span>
+    <span class="badge flex-badge" id="flexBadge">Flexible Dates</span>
   </div>
 
   <div class="search-form">
     <div class="form-row">
       <label>Destination</label>
-      <input type="text" id="destination" placeholder="Airport code or city (e.g. CMN, London, Casablanca)" autocomplete="off">
+      <input type="text" id="destination" placeholder="Type a city or airport code — e.g. London Heathrow, JFK, Los Angeles" autocomplete="off">
       <div id="destHint" style="font-size:12px; margin-top:4px; min-height:16px;"></div>
     </div>
     <div class="date-row">
       <div class="form-row"><label>Departure</label><input type="date" id="depart"></div>
       <div class="form-row"><label>Return</label><input type="date" id="returnDate"></div>
     </div>
+
+    <!-- Flexible dates toggle -->
+    <div class="flex-toggle-row">
+      <label class="flex-toggle-header" for="flexEnabled">
+        <input type="checkbox" id="flexEnabled" onchange="toggleFlex()">
+        <span class="flex-toggle-label">Flexible Dates</span>
+      </label>
+      <div class="flex-toggle-desc">Search ± days around your chosen dates to find the cheapest combination</div>
+      <div class="flex-options" id="flexOptions">
+        <div class="flex-radio-group" id="flexRadioGroup">
+          <label class="flex-radio-btn selected" id="flex-label-1">
+            <input type="radio" name="flexDays" value="1" checked> ±1 day <small style="color:#666">(64 searches)</small>
+          </label>
+          <label class="flex-radio-btn" id="flex-label-2">
+            <input type="radio" name="flexDays" value="2"> ±2 days <small style="color:#666">(176 searches)</small>
+          </label>
+          <label class="flex-radio-btn" id="flex-label-3">
+            <input type="radio" name="flexDays" value="3"> ±3 days <small style="color:#666">(344 searches)</small>
+          </label>
+        </div>
+        <div class="flex-warning" id="flexWarning">
+          ⚠ This will run a large number of searches and may take a long time. Results will appear progressively.
+        </div>
+      </div>
+    </div>
+
     <div class="form-row">
       <label>Compare from these airports</label>
       <div class="origins-grid" id="originsGrid">
@@ -298,24 +404,54 @@
     <button class="btn-search" id="searchBtn" onclick="startSearch()">Search Flights</button>
   </div>
 
-  <!-- Progress Dashboard: one row per origin -->
+  <!-- Progress Dashboard -->
   <div class="progress-dashboard" id="progressDashboard">
     <div class="progress-dashboard-title">Search Progress</div>
+
+    <!-- Total progress bar -->
+    <div class="total-progress-wrap" id="totalProgressWrap">
+      <div class="total-progress-header">
+        <span class="total-progress-pct" id="totalProgressPct">0%</span>
+        <span class="total-progress-eta" id="totalProgressEta"></span>
+      </div>
+      <div class="total-progress-track">
+        <div class="total-progress-fill" id="totalProgressFill"></div>
+      </div>
+      <div class="total-progress-count" id="totalProgressCount"></div>
+    </div>
+
+    <div class="progress-counter" id="progressCounter" style="display:none">
+      Completed <span id="completedCount">0</span> of <span id="totalCount">0</span> searches
+    </div>
+    <!-- Global best bar — only shown during flex search -->
+    <div class="global-best-bar" id="globalBestBar">
+      <div style="font-size:11px;color:#4a8a5a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Current Best Price Found</div>
+      <div class="best-price" id="globalBestPrice">--</div>
+      <div class="best-detail" id="globalBestDetail"></div>
+    </div>
     <div id="progressRows"></div>
   </div>
 
-  <!-- Live results: cards appear here as each search completes -->
-  <div class="results-section" id="liveResultsSection" style="display:none"></div>
+  <!-- Winner banner — shown during flex search when overall winner is known -->
+  <div class="winner-banner" id="winnerBanner">
+    <h2>Cheapest Flight Found</h2>
+    <div class="winner-origin" id="winnerOrigin">--</div>
+    <div class="winner-price" id="winnerPrice">--</div>
+    <div class="winner-qar" id="winnerQAR"></div>
+    <div class="winner-dates" id="winnerDates"></div>
+    <div class="winner-dates-orig" id="winnerDatesOrig"></div>
+  </div>
 
-  <!-- Comparison: Winner vs DOH side-by-side -->
+  <!-- Comparison: Winner vs DOH -->
   <div class="comparison-section" id="comparisonSection">
     <div class="comparison-card">
-      <div class="comparison-header">Price Comparison</div>
+      <div class="comparison-header" id="comparisonHeader">Price Comparison</div>
       <div class="comparison-body">
         <div class="comparison-side winner">
-          <div class="comparison-label">Cheapest Origin</div>
+          <div class="comparison-label">Cheapest Found</div>
           <div class="comparison-origin" id="compWinnerOrigin">--</div>
           <div class="comparison-route" id="compWinnerRoute">--</div>
+          <div class="comparison-dates" id="compWinnerDates"></div>
           <div class="comparison-price" id="compWinnerPrice">--</div>
           <div class="comparison-price-qar" id="compWinnerQAR">--</div>
         </div>
@@ -323,6 +459,7 @@
           <div class="comparison-label">DOH Direct</div>
           <div class="comparison-origin">DOH</div>
           <div class="comparison-route" id="compDohRoute">Doha non-stop</div>
+          <div class="comparison-dates" id="compDohDates"></div>
           <div class="comparison-price" id="compDohPrice">--</div>
           <div class="comparison-price-qar" id="compDohQAR">--</div>
         </div>
@@ -339,37 +476,40 @@
     <strong>How to book:</strong> ITA Matrix does not sell tickets. Use the flight details above to book on
     <a href="https://www.qatarairways.com" target="_blank" style="color:#d44a8c">qatarairways.com</a> or your preferred OTA.<br>
     <strong>Note:</strong> Prices may change. All fares are Qatar Airways operated, Business class, connecting via Doha (DOH).
+    <span id="flexNote" style="display:none"><br><strong>Flexible search:</strong> Winning dates may differ from your chosen dates. Trip duration may vary.</span>
   </div>
 
   <div style="text-align:center; margin-top:24px; padding-bottom:16px; font-size:11px; color:#333355;">
-    v2.0.0
+    v3.2.0
   </div>
 
 </div>
 
 <script>
-  // Sanitize any value before inserting into innerHTML
+  // ── Utilities ──────────────────────────────────────────────────────────────
   function esc(val) {
     if (val === null || val === undefined) return '';
     return String(val)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
-
-  // Format numbers with explicit en-US locale to avoid regional separators
   function fmt(n) { return Number(n).toLocaleString('en-US'); }
 
+  // Format YYYY-MM-DD -> "Mar 22" style
+  function fmtDate(str) {
+    if (!str) return '';
+    const d = new Date(str + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  // ── Airport name lookup ───────────────────────────────────────────────────
   const AIRPORT_NAMES = {
     DMM: 'Dammam', BAH: 'Bahrain', RUH: 'Riyadh',
     DXB: 'Dubai', AUH: 'Abu Dhabi', DOH: 'Doha',
     JED: 'Jeddah', KWI: 'Kuwait', MCT: 'Muscat'
   };
 
-  // Default dates: depart = 1 month from today, return = 1 month after depart (2 months from today)
-  // Uses setMonth() so it respects month lengths correctly (e.g. Jan 31 + 1 month = Feb 28)
+  // ── Default dates: depart = today +1 month, return = today +2 months ──────
   const today = new Date();
   const dep = new Date(today); dep.setMonth(dep.getMonth() + 1);
   const ret = new Date(dep);   ret.setMonth(ret.getMonth() + 1);
@@ -378,6 +518,7 @@
   document.getElementById('depart').min = today.toISOString().split('T')[0];
   document.getElementById('returnDate').min = today.toISOString().split('T')[0];
 
+  // ── Origin chips ──────────────────────────────────────────────────────────
   document.querySelectorAll('.origin-chip').forEach(chip => {
     chip.addEventListener('click', () => { chip.classList.toggle('selected', chip.querySelector('input').checked); });
     chip.querySelector('input').addEventListener('change', function() { chip.classList.toggle('selected', this.checked); });
@@ -389,7 +530,6 @@
     if (!code || code.length !== 3 || !/^[A-Z]{3}$/.test(code)) { input.value = ''; return; }
     const existing = document.querySelectorAll('.origin-chip input');
     for (const cb of existing) { if (cb.value === code) { input.value = ''; return; } }
-    // Build chip safely without innerHTML to prevent XSS
     const chip = document.createElement('label');
     chip.className = 'origin-chip selected';
     const cb = document.createElement('input');
@@ -403,6 +543,38 @@
   }
   document.getElementById('newOrigin').addEventListener('keydown', (e) => { if (e.key === 'Enter') addOrigin(); });
 
+  // ── Flex toggle ───────────────────────────────────────────────────────────
+  function toggleFlex() {
+    const cb = document.getElementById('flexEnabled');
+    // cb.checked is already updated by the browser — just react to it
+    const opts = document.getElementById('flexOptions');
+    opts.classList.toggle('visible', cb.checked);
+    document.getElementById('flexBadge').classList.toggle('visible', cb.checked);
+    updateFlexWarning();
+  }
+
+  // Update flex radio button styles and warning
+  document.querySelectorAll('input[name="flexDays"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.flex-radio-btn').forEach(l => l.classList.remove('selected'));
+      radio.closest('.flex-radio-btn').classList.add('selected');
+      updateFlexWarning();
+    });
+  });
+
+  function updateFlexWarning() {
+    const enabled = document.getElementById('flexEnabled').checked;
+    const val = parseInt(document.querySelector('input[name="flexDays"]:checked')?.value || '1');
+    const warn = document.getElementById('flexWarning');
+    warn.classList.toggle('visible', enabled && val >= 2);
+  }
+
+  function getFlexDays() {
+    if (!document.getElementById('flexEnabled').checked) return 0;
+    return parseInt(document.querySelector('input[name="flexDays"]:checked')?.value || '1');
+  }
+
+  // ── Destination hint ──────────────────────────────────────────────────────
   let resolveTimer = null;
   document.getElementById('destination').addEventListener('input', (e) => {
     clearTimeout(resolveTimer);
@@ -415,10 +587,11 @@
         const data = await res.json();
         if (data.resolved) { hint.textContent = `-> ${data.resolved.label}`; hint.style.color = '#2ecc71'; }
         else { hint.textContent = val.length === 3 ? `-> ${val.toUpperCase()} (as code)` : 'Unknown destination'; hint.style.color = val.length === 3 ? '#9b9bb0' : '#e74c3c'; }
-      } catch (err) { hint.textContent = ''; }
+      } catch (_) { hint.textContent = ''; }
     }, 300);
   });
 
+  // ── Flight details HTML ───────────────────────────────────────────────────
   function flightDetailsHTML(r) {
     if (!r.flights || r.flights.length === 0) return '';
     const f = r.flights[0];
@@ -448,19 +621,24 @@
       </div>`;
   }
 
-  // ── Update a progress row ──
+  // ── Progress row management ───────────────────────────────────────────────
+  // pairsDone[origin] = count of completed pairs for that origin
+  const pairsDone = {};
+  let totalPairsPerOrigin = 1;
+
   function setRowState(origin, state, statusText, priceText) {
     const row = document.getElementById(`prog-${origin}`);
     if (!row) return;
     const icon = row.querySelector('.progress-icon');
     const status = row.querySelector('.progress-status');
     const price = row.querySelector('.progress-price');
+    const fill = row.querySelector('.progress-flex-fill');
 
     row.className = 'progress-row' + (origin === 'DOH' ? ' doh' : '');
 
     if (state === 'waiting') {
       icon.innerHTML = '<span class="progress-wait">-</span>';
-      status.textContent = 'Waiting...';
+      status.textContent = statusText || 'Waiting...';
     } else if (state === 'active') {
       row.classList.add('active');
       icon.innerHTML = '<div class="progress-spinner"></div>';
@@ -470,10 +648,12 @@
       icon.innerHTML = '<span class="progress-check">&#10003;</span>';
       status.textContent = statusText || 'Done';
       if (priceText) price.textContent = priceText;
+      if (fill) fill.style.width = '100%';
     } else if (state === 'done-noresult') {
       row.classList.add('done-noresult');
       icon.innerHTML = '<span class="progress-x">-</span>';
       status.textContent = statusText || 'No flights';
+      if (fill) fill.style.width = '100%';
     } else if (state === 'retrying') {
       row.classList.add('retrying');
       icon.innerHTML = '<span class="progress-retry">&#8635;</span>';
@@ -485,48 +665,99 @@
     }
   }
 
-  let resultsData = [];
-  let resolvedDest = ''; // Shared with renderLiveResults
-
-  // ── Render live results sorted by price (shows full cards as they arrive) ──
-  function renderLiveResults() {
-    const section = document.getElementById('liveResultsSection');
-    section.style.display = 'block';
-    section.innerHTML = '';
-    
-    // Sort by USD
-    const sorted = resultsData
-      .filter(r => r.found && r.cheapestUSD)
-      .sort((a, b) => a.cheapestUSD - b.cheapestUSD);
-    
-    if (sorted.length === 0) return;
-    
-    sorted.forEach((r, i) => {
-      const name = esc(AIRPORT_NAMES[r.origin] || r.origin);
-      const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
-      const card = document.createElement('div');
-      card.className = 'result-card' + (i === 0 ? ' winner' : '');
-      card.id = `live-${esc(r.origin)}`;
-      card.innerHTML = `
-        <div class="result-header">
-          <div class="result-left">
-            <div class="result-rank">#${i + 1}</div>
-            <div>
-              <div class="result-origin">${esc(r.origin)}</div>
-              <div class="result-route">${name} -&gt; ${esc(resolvedDest)} via DOH</div>
-            </div>
-          </div>
-          <div class="result-price">
-            <div class="result-price-usd">$${fmt(r.cheapestUSD)}</div>
-            <div class="result-price-qar">QAR ${fmt(qar)}</div>
-            <div class="result-price-local">${esc(r.cheapestLocal?.currency)} ${r.cheapestLocal?.amount ? fmt(r.cheapestLocal.amount) : ''}</div>
-          </div>
-        </div>
-        ${flightDetailsHTML(r)}`;
-      section.appendChild(card);
-    });
+  // Update flex progress bar for an origin
+  function updateFlexBar(origin, pairIndex, totalPairs) {
+    const fill = document.getElementById(`prog-${origin}`)?.querySelector('.progress-flex-fill');
+    if (!fill || totalPairs === 0) return;
+    fill.style.width = `${Math.round(((pairIndex + 1) / totalPairs) * 100)}%`;
   }
 
+  // ── Global best tracking ──────────────────────────────────────────────────
+  let globalBest = null; // { cheapestUSD, origin, winningDepart, winningReturn }
+
+  function updateGlobalBest(data) {
+    if (!globalBest || data.cheapestUSD < globalBest.cheapestUSD) {
+      globalBest = data;
+      const bar = document.getElementById('globalBestBar');
+      bar.style.display = 'block';
+      document.getElementById('globalBestPrice').textContent = `$${fmt(data.cheapestUSD)}`;
+      document.getElementById('globalBestDetail').textContent =
+        `${esc(data.origin)} — ${fmtDate(data.winningDepart)} → ${fmtDate(data.winningReturn)}`;
+
+      // Also update winner banner
+      const banner = document.getElementById('winnerBanner');
+      banner.style.display = 'block';
+      document.getElementById('winnerOrigin').textContent = data.origin;
+      document.getElementById('winnerPrice').textContent = `$${fmt(data.cheapestUSD)}`;
+      document.getElementById('winnerQAR').textContent = data.cheapestQAR ? `QAR ${fmt(data.cheapestQAR)}` : '';
+      document.getElementById('winnerDates').textContent =
+        `${fmtDate(data.winningDepart)} → ${fmtDate(data.winningReturn)}`;
+      const tiedCount = data.tiedCount || 1;
+      document.getElementById('winnerDatesOrig').textContent =
+        tiedCount > 1 ? `+${tiedCount - 1} other date${tiedCount > 2 ? 's' : ''} at same price` : '';
+    }
+  }
+
+  // ── Progress bar + ETA state ──────────────────────────────────────────────
+  let searchStartTime = null;
+  let lastCompleted = 0;
+  let lastTotal = 0;
+
+  function formatETA(seconds) {
+    if (!isFinite(seconds) || seconds < 0) return '';
+    if (seconds < 60) return `~${Math.ceil(seconds)}s remaining`;
+    const m = Math.floor(seconds / 60);
+    const s = Math.ceil(seconds % 60);
+    return s > 0 ? `~${m}m ${s}s remaining` : `~${m}m remaining`;
+  }
+
+  function updateProgressBar(completed, total) {
+    if (total === 0) return;
+    lastCompleted = completed; lastTotal = total;
+    const pct = Math.round((completed / total) * 100);
+    const fill = document.getElementById('totalProgressFill');
+    const pctEl = document.getElementById('totalProgressPct');
+    const etaEl = document.getElementById('totalProgressEta');
+    const countEl = document.getElementById('totalProgressCount');
+
+    fill.style.width = pct + '%';
+    pctEl.textContent = pct + '%';
+    countEl.textContent = `${completed} / ${total} searches complete`;
+
+    if (pct >= 100) {
+      fill.classList.add('done');
+      pctEl.classList.add('done');
+      etaEl.textContent = 'Complete';
+    } else if (searchStartTime && completed >= 3) {
+      const elapsed = (Date.now() - searchStartTime) / 1000;
+      const rate = completed / elapsed;
+      const remaining = (total - completed) / rate;
+      etaEl.textContent = formatETA(remaining);
+    } else {
+      etaEl.textContent = 'Calculating...';
+    }
+  }
+
+  // ── Tied dates HTML helper ────────────────────────────────────────────────
+  function tiedDatesHTML(tiedDates, headlineDepart, headlineReturn, flexDaysUsed) {
+    if (!flexDaysUsed || !tiedDates || tiedDates.length <= 1) return '';
+    const items = tiedDates.map(td => {
+      const isHead = td.depart === headlineDepart && td.return === headlineReturn;
+      return `<span class="tied-date-item${isHead ? ' headline' : ''}">${esc(fmtDate(td.depart))} → ${esc(fmtDate(td.return))}${isHead ? ' ✦' : ''}</span>`;
+    }).join('');
+    return `<div class="tied-dates-list">
+      <div class="tied-label">Same price on ${tiedDates.length} date combos</div>
+      ${items}
+    </div>`;
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let resolvedDest = '';
+  let isFlexSearch = false;
+  let originalDepart = '';
+  let originalReturn = '';
+
+  // ── Main search ───────────────────────────────────────────────────────────
   async function startSearch() {
     const destinationRaw = document.getElementById('destination').value.trim();
     const departVal = document.getElementById('depart').value;
@@ -536,151 +767,198 @@
     if (!departVal || !returnVal) { alert('Select dates'); return; }
     const dDate = new Date(departVal + 'T00:00:00');
     const rDate = new Date(returnVal + 'T00:00:00');
-    if (isNaN(dDate.getTime()) || isNaN(rDate.getTime())) { alert('Invalid dates selected'); return; }
+    if (isNaN(dDate.getTime()) || isNaN(rDate.getTime())) { alert('Invalid dates'); return; }
     if (rDate <= dDate) { alert('Return must be after departure'); return; }
 
     const origins = [];
     document.querySelectorAll('.origin-chip input:checked').forEach(cb => origins.push(cb.value));
     if (origins.length === 0) { alert('Select at least one origin'); return; }
 
+    const flexDays = getFlexDays();
+    isFlexSearch = flexDays > 0;
+    originalDepart = departVal;
+    originalReturn = returnVal;
+    globalBest = null;
+
     const btn = document.getElementById('searchBtn');
     btn.disabled = true;
-    btn.textContent = 'Searching...';
+    btn.textContent = isFlexSearch ? `Searching ±${flexDays} days...` : 'Searching...';
 
     // Reset UI
-    document.getElementById('resultsSection').style.display = 'none';
-    document.getElementById('resultsSection').innerHTML = '';
-    document.getElementById('liveResultsSection').style.display = 'none';
-    document.getElementById('liveResultsSection').innerHTML = '';
-    document.getElementById('comparisonSection').style.display = 'none';
-    document.getElementById('notesSection').style.display = 'none';
+    ['resultsSection', 'comparisonSection', 'notesSection'].forEach(id => {
+      document.getElementById(id).style.display = 'none';
+      if (id === 'resultsSection') document.getElementById(id).innerHTML = '';
+    });
+    document.getElementById('winnerBanner').style.display = 'none';
+    document.getElementById('globalBestBar').style.display = 'none';
+    document.getElementById('progressCounter').style.display = 'none';
+
+    // Reset progress bar
+    searchStartTime = Date.now();
+    document.getElementById('totalProgressWrap').style.display = 'none';
+    document.getElementById('totalProgressFill').style.width = '0%';
+    document.getElementById('totalProgressFill').classList.remove('done');
+    document.getElementById('totalProgressPct').textContent = '0%';
+    document.getElementById('totalProgressPct').classList.remove('done');
+    document.getElementById('totalProgressEta').textContent = '';
+    document.getElementById('totalProgressCount').textContent = '';
 
     // Build progress dashboard
     const dashboard = document.getElementById('progressDashboard');
     dashboard.style.display = 'block';
     const rowsContainer = document.getElementById('progressRows');
     rowsContainer.innerHTML = '';
+    pairsDone[origin] = 0;
+    totalPairsPerOrigin = 1;
 
-    // One row per origin + DOH
-    const allCodes = [...origins, 'DOH'];
-    allCodes.forEach(code => {
+    // DOH row first
+    const dohRow = document.createElement('div');
+    dohRow.className = 'progress-row doh';
+    dohRow.id = 'prog-DOH';
+    dohRow.innerHTML = `
+      <div class="progress-icon"><span class="progress-wait">-</span></div>
+      <div class="progress-origin">DOH</div>
+      <div class="progress-status">DOH non-stop benchmark — Waiting...</div>
+      ${isFlexSearch ? '<div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>' : ''}
+      <div class="progress-price"></div>`;
+    rowsContainer.appendChild(dohRow);
+
+    // Origin rows
+    origins.forEach(code => {
       const name = AIRPORT_NAMES[code] || code;
-      const isDOH = code === 'DOH';
       const row = document.createElement('div');
-      row.className = 'progress-row' + (isDOH ? ' doh' : '');
+      row.className = 'progress-row';
       row.id = `prog-${code}`;
       row.innerHTML = `
         <div class="progress-icon"><span class="progress-wait">-</span></div>
-        <div class="progress-origin">${code}</div>
-        <div class="progress-status">${isDOH ? 'DOH non-stop benchmark' : name} — Waiting...</div>
-        <div class="progress-price"></div>
-      `;
+        <div class="progress-origin">${esc(code)}</div>
+        <div class="progress-status">${esc(name)} — Waiting...</div>
+        ${isFlexSearch ? '<div class="progress-flex-bar"><div class="progress-flex-track"><div class="progress-flex-fill"></div></div></div>' : ''}
+        <div class="progress-price"></div>`;
       rowsContainer.appendChild(row);
     });
 
-    resultsData = [];
-
-    const params = new URLSearchParams({ destination: destinationRaw, depart: departVal, returnDate: returnVal, origins: origins.join(',') });
+    const params = new URLSearchParams({
+      destination: destinationRaw, depart: departVal,
+      returnDate: returnVal, origins: origins.join(','), flexDays
+    });
     const eventSource = new EventSource(`/api/search?${params}`);
-
     resolvedDest = destinationRaw;
+
+    // ── SSE Event Handlers ──────────────────────────────────────────────────
 
     eventSource.addEventListener('info', (e) => {
       const data = JSON.parse(e.data);
       resolvedDest = data.destinationLabel || data.destination;
+      totalPairsPerOrigin = data.pairsPerOrigin || 1;
+      searchStartTime = Date.now();
+      // Show progress bar and counter
+      document.getElementById('totalProgressWrap').style.display = 'block';
+      document.getElementById('progressCounter').style.display = 'block';
+      document.getElementById('totalCount').textContent = data.totalSearches;
+      document.getElementById('completedCount').textContent = '0';
+      updateProgressBar(0, data.totalSearches);
     });
 
-    eventSource.addEventListener('progress', (e) => {
+    // Global counter — fires after every completed search across all lanes
+    eventSource.addEventListener('counter', (e) => {
       const data = JSON.parse(e.data);
-      if (data.status === 'done') return; // handled by result/doh_result
-      setRowState(data.origin, 'active', data.detail || 'Searching...');
+      document.getElementById('completedCount').textContent = data.completed;
+      document.getElementById('totalCount').textContent = data.total;
+      updateProgressBar(data.completed, data.total);
     });
 
-    eventSource.addEventListener('result', (e) => {
-      const data = JSON.parse(e.data);
-      
-      // Update or add result (avoid duplicates on retry)
-      const existingIdx = resultsData.findIndex(r => r.origin === data.origin);
-      if (existingIdx >= 0) {
-        resultsData[existingIdx] = data;
-      } else {
-        resultsData.push(data);
-      }
-      
-      // Update progress row
-      if (data.found && data.cheapestUSD) {
-        setRowState(data.origin, 'done', `$${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
-      } else {
-        setRowState(data.origin, 'done-noresult', 'No flights found');
-      }
-      
-      // ── Render live result card with full details ──
-      renderLiveResults();
-    });
-
+    // DOH result — emitted whenever DOH finds a new best (may fire multiple times in flex mode)
     eventSource.addEventListener('doh_result', (e) => {
       const data = JSON.parse(e.data);
       if (data.found && data.cheapestUSD) {
-        setRowState('DOH', 'done', `$${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
+        setRowState('DOH', 'done', `Best: $${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
       } else {
         setRowState('DOH', 'done-noresult', 'No direct flights');
       }
     });
 
-    eventSource.addEventListener('retry_start', (e) => {
+    // flex_progress covers ALL lanes including DOH (replaces old 'progress' event)
+    eventSource.addEventListener('flex_progress', (e) => {
       const data = JSON.parse(e.data);
-      data.failedOrigins.forEach(origin => {
-        setRowState(origin, 'retrying', 'Retrying...');
-      });
-      if (data.dohFailed) {
-        setRowState('DOH', 'retrying', 'Retrying DOH...');
+      const origin = data.origin;
+
+      if (data.status === 'lane_start') {
+        setRowState(origin, 'active', `Starting ${data.totalPairs} search${data.totalPairs > 1 ? 'es' : ''}...`);
+
+      } else if (data.status === 'searching') {
+        const label = data.totalPairs > 1
+          ? `${fmtDate(data.depart)} → ${fmtDate(data.return)} (${data.pairIndex + 1}/${data.totalPairs})`
+          : (data.detail || 'Searching...');
+        setRowState(origin, 'active', label);
+
+      } else if (data.status === 'pair_done') {
+        updateFlexBar(origin, data.pairIndex, data.totalPairs);
+
+      } else if (data.status === 'retrying') {
+        setRowState(origin, 'retrying', data.detail || 'Retrying failed searches...');
+
+      } else if (data.status === 'lane_done') {
+        if (data.found && data.cheapestUSD) {
+          setRowState(origin, 'done', `Best: $${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
+        } else {
+          setRowState(origin, 'done-noresult', 'No flights found');
+        }
       }
     });
 
-    eventSource.addEventListener('retry_progress', (e) => {
+    // New best price found for an origin — update row price + global best live
+    eventSource.addEventListener('flex_best', (e) => {
       const data = JSON.parse(e.data);
-      setRowState(data.origin, 'retrying', data.detail || 'Retrying...');
+      const priceEl = document.getElementById(`prog-${data.origin}`)?.querySelector('.progress-price');
+      if (priceEl) priceEl.textContent = `$${fmt(data.cheapestUSD)}`;
+      updateGlobalBest(data);
     });
 
     eventSource.addEventListener('done', (e) => {
       const data = JSON.parse(e.data);
       eventSource.close();
 
-      // Hide live results, show final sorted results
-      document.getElementById('liveResultsSection').style.display = 'none';
-      document.getElementById('resultsSection').style.display = 'block';
-      const section = document.getElementById('resultsSection');
-      section.innerHTML = '';
       const sorted = data.results || [];
-
       const doh = data.dohDirect;
+      const flexDaysUsed = data.flexDays || 0;
 
-      // ── Render Comparison Card: Winner vs DOH ──
+      // Mark all origin rows as done
+      sorted.forEach(r => {
+        if (r.found && r.cheapestUSD) {
+          setRowState(r.origin, 'done', `Best: $${fmt(r.cheapestUSD)}`, `$${fmt(r.cheapestUSD)}`);
+        } else {
+          setRowState(r.origin, 'done-noresult', 'No flights');
+        }
+      });
+
+      // ── Comparison Card ──
       if (sorted.length > 0) {
         const winner = sorted[0];
         const winnerName = AIRPORT_NAMES[winner.origin] || winner.origin;
         const winnerQAR = winner.cheapestQAR || Math.round(winner.cheapestUSD / 0.275);
+        const winnerDepart = winner.winningDepart || data.originalDepart;
+        const winnerReturn = winner.winningReturn || data.originalReturn;
+        const datesShifted = winnerDepart !== data.originalDepart || winnerReturn !== data.originalReturn;
 
-        // Winner side
         document.getElementById('compWinnerOrigin').textContent = winner.origin;
         document.getElementById('compWinnerRoute').textContent = `${winnerName} via DOH`;
+        document.getElementById('compWinnerDates').textContent =
+          flexDaysUsed > 0 ? `${fmtDate(winnerDepart)} → ${fmtDate(winnerReturn)}${datesShifted ? ' ✦' : ''}` : '';
         document.getElementById('compWinnerPrice').textContent = `$${fmt(winner.cheapestUSD)}`;
         document.getElementById('compWinnerQAR').textContent = `QAR ${fmt(winnerQAR)}`;
 
-        // DOH side
         if (doh && doh.found && doh.cheapestUSD) {
           const dohQAR = doh.cheapestQAR || Math.round(doh.cheapestUSD / 0.275);
-          document.getElementById('compDohRoute').textContent = `Doha non-stop`;
+          document.getElementById('compDohRoute').textContent = 'Doha non-stop';
+          document.getElementById('compDohDates').textContent =
+            flexDaysUsed > 0 ? `${fmtDate(data.originalDepart)} → ${fmtDate(data.originalReturn)}` : '';
           document.getElementById('compDohPrice').textContent = `$${fmt(doh.cheapestUSD)}`;
           document.getElementById('compDohQAR').textContent = `QAR ${fmt(dohQAR)}`;
 
-          // Savings calculation
-          const winnerUSD = Number(winner.cheapestUSD);
-          const dohUSD = Number(doh.cheapestUSD);
-          const diff = dohUSD - winnerUSD;
-          const pct = Math.abs(Math.round((Math.abs(diff) / Math.max(winnerUSD, dohUSD)) * 100));
+          const diff = doh.cheapestUSD - winner.cheapestUSD;
+          const pct = Math.abs(Math.round((Math.abs(diff) / Math.max(winner.cheapestUSD, doh.cheapestUSD)) * 100));
           const savingsEl = document.getElementById('compSavings');
-
           if (diff > 20) {
             savingsEl.className = 'comparison-savings cheaper';
             savingsEl.innerHTML = `${esc(winner.origin)} saves <strong>$${fmt(Math.round(diff))}</strong> (${pct}% cheaper)`;
@@ -689,10 +967,10 @@
             savingsEl.innerHTML = `DOH is <strong>$${fmt(Math.round(Math.abs(diff)))}</strong> cheaper (${pct}%)`;
           } else {
             savingsEl.className = 'comparison-savings same';
-            savingsEl.innerHTML = `Prices are similar`;
+            savingsEl.textContent = 'Prices are similar';
           }
         } else {
-          document.getElementById('compDohRoute').textContent = `No direct flights`;
+          document.getElementById('compDohRoute').textContent = 'No direct flights';
           document.getElementById('compDohPrice').textContent = '--';
           document.getElementById('compDohQAR').textContent = '';
           document.getElementById('compSavings').className = 'comparison-savings same';
@@ -702,13 +980,30 @@
         document.getElementById('comparisonSection').style.display = 'block';
       }
 
-      // ── Render full results list ──
+      // ── Results List ──
+      const section = document.getElementById('resultsSection');
+      section.style.display = 'block';
+      section.innerHTML = '';
+
       if (sorted.length > 0) {
         sorted.forEach((r, i) => {
           const name = esc(AIRPORT_NAMES[r.origin] || r.origin);
           const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
+          const winDepart = r.winningDepart || data.originalDepart;
+          const winReturn = r.winningReturn || data.originalReturn;
+          const shifted = flexDaysUsed > 0 && (winDepart !== data.originalDepart || winReturn !== data.originalReturn);
+          const tied = r.tiedDates || [];
+
           const card = document.createElement('div');
           card.className = 'result-card' + (i === 0 ? ' winner' : '');
+
+          let datesHTML = '';
+          if (flexDaysUsed > 0) {
+            datesHTML = `<div class="result-winning-dates${shifted ? ' shifted' : ''}">
+              ${esc(fmtDate(winDepart))} → ${esc(fmtDate(winReturn))}${shifted ? ' ✦' : ''}
+            </div>`;
+          }
+
           card.innerHTML = `
             <div class="result-header">
               <div class="result-left">
@@ -716,6 +1011,7 @@
                 <div>
                   <div class="result-origin">${esc(r.origin)}</div>
                   <div class="result-route">${name} -&gt; ${esc(resolvedDest)} via DOH</div>
+                  ${datesHTML}
                 </div>
               </div>
               <div class="result-price">
@@ -724,6 +1020,7 @@
                 <div class="result-price-local">${esc(r.cheapestLocal?.currency)} ${r.cheapestLocal?.amount ? fmt(r.cheapestLocal.amount) : ''}</div>
               </div>
             </div>
+            ${tiedDatesHTML(tied, winDepart, winReturn, flexDaysUsed)}
             ${flightDetailsHTML(r)}`;
           section.appendChild(card);
         });
@@ -731,6 +1028,10 @@
         section.innerHTML = '<div class="result-card"><div class="result-header"><div class="result-left"><div class="result-origin">No Qatar Airways Business Class flights found</div></div></div></div>';
       }
 
+      // Show flex note if dates shifted
+      if (flexDaysUsed > 0) {
+        document.getElementById('flexNote').style.display = 'inline';
+      }
       document.getElementById('notesSection').style.display = 'block';
       btn.disabled = false;
       btn.textContent = 'Search Flights';
@@ -740,15 +1041,14 @@
       eventSource.close();
       btn.disabled = false;
       btn.textContent = 'Search Flights';
-      // Show error only if search didn't already complete normally
       const resultsVisible = document.getElementById('resultsSection').style.display !== 'none';
       if (!resultsVisible) {
         const errDiv = document.createElement('div');
         errDiv.className = 'result-card';
-        errDiv.style.borderColor = '#e74c3c';
-        errDiv.innerHTML = '<div class="result-header"><div class="result-left"><div class="result-origin" style="color:#e74c3c">Search failed</div></div></div><div style="padding:8px 0;font-size:13px;color:#999">Connection lost. Please try again.</div>';
-        document.getElementById('liveResultsSection').style.display = 'block';
-        document.getElementById('liveResultsSection').appendChild(errDiv);
+        errDiv.style.cssText = 'border-color:#e74c3c;margin-top:12px';
+        errDiv.innerHTML = '<div class="result-header"><div class="result-left"><div class="result-origin" style="color:#e74c3c">Search failed</div></div></div><div style="padding:8px 0;font-size:13px;color:#999">Connection lost or server error. Please try again.</div>';
+        document.getElementById('resultsSection').style.display = 'block';
+        document.getElementById('resultsSection').appendChild(errDiv);
       }
     };
   }
