@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Environment variables (contains secrets)
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Swap file (created by install.sh)
+/swapfile
+
+# Deployment script (contains credentials)
+deploy.js
+
+# Debug/helper scripts
+check.js
+diagnose.js
+fix_parallel.js
+fix_ubuntu.js
+
+# V1.0 backup folder
+qr-flight-search-v1.0/

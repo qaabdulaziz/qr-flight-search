@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Business Class Finder</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a1a; color: #e0e0e0; min-height: 100vh;
+    }
+    .header {
+      background: linear-gradient(135deg, #5c0a30 0%, #7a1145 50%, #4a0826 100%);
+      padding: 24px 20px; text-align: center; border-bottom: 2px solid #9b1b5a;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; color: #fff; letter-spacing: 0.5px; }
+    .header p { font-size: 13px; color: #d4a0b9; margin-top: 4px; }
+    .container { max-width: 760px; margin: 0 auto; padding: 20px; }
+
+    .search-form {
+      background: #141428; border: 1px solid #2a2a4a;
+      border-radius: 12px; padding: 24px; margin-bottom: 20px;
+    }
+    .form-row { margin-bottom: 16px; }
+    .form-row label {
+      display: block; font-size: 12px; font-weight: 600;
+      text-transform: uppercase; color: #9b9bb0; margin-bottom: 6px; letter-spacing: 0.5px;
+    }
+    .form-row input[type="text"], .form-row input[type="date"] {
+      width: 100%; padding: 12px 14px; background: #1a1a35;
+      border: 1px solid #2a2a4a; border-radius: 8px; color: #fff; font-size: 16px; outline: none;
+    }
+    .form-row input:focus { border-color: #9b1b5a; }
+    .date-row { display: flex; gap: 12px; }
+    .date-row .form-row { flex: 1; }
+
+    .origins-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .origin-chip {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      background: #1a1a35; border: 1px solid #2a2a4a; border-radius: 20px;
+      cursor: pointer; user-select: none; font-size: 14px;
+    }
+    .origin-chip:hover { border-color: #9b1b5a; }
+    .origin-chip.selected { background: #3d0f27; border-color: #9b1b5a; color: #fff; }
+    .origin-chip input { display: none; }
+
+    .add-origin { display: flex; gap: 8px; margin-top: 10px; }
+    .add-origin input {
+      flex: 1; padding: 8px 12px; background: #1a1a35; border: 1px solid #2a2a4a;
+      border-radius: 8px; color: #fff; font-size: 14px; text-transform: uppercase; outline: none;
+    }
+    .add-origin input:focus { border-color: #9b1b5a; }
+    .btn-add {
+      padding: 8px 16px; background: #2a2a4a; border: 1px solid #3a3a5a;
+      border-radius: 8px; color: #ccc; cursor: pointer; font-size: 14px;
+    }
+    .btn-add:hover { background: #3a3a5a; }
+
+    .btn-search {
+      width: 100%; padding: 14px;
+      background: linear-gradient(135deg, #7a1145 0%, #9b1b5a 100%);
+      border: none; border-radius: 10px; color: #fff; font-size: 16px;
+      font-weight: 600; cursor: pointer; letter-spacing: 0.5px;
+    }
+    .btn-search:hover { opacity: 0.9; }
+    .btn-search:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .badge-row { display: flex; gap: 8px; justify-content: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .badge {
+      padding: 4px 12px; background: #1a1a35; border: 1px solid #2a2a4a;
+      border-radius: 12px; font-size: 11px; color: #9b9bb0; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+
+    /* ── Progress Dashboard ── */
+    .progress-dashboard { display: none; margin-bottom: 20px; }
+    .progress-dashboard-title {
+      font-size: 12px; font-weight: 600; text-transform: uppercase; color: #9b9bb0;
+      margin-bottom: 10px; letter-spacing: 0.5px;
+    }
+    .progress-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; margin-bottom: 4px;
+      background: #141428; border: 1px solid #1e1e3a; border-radius: 8px;
+      font-size: 13px; transition: border-color 0.3s, background 0.3s;
+    }
+    .progress-row.active { border-color: #9b1b5a; }
+    .progress-row.done { border-color: #2a4a2a; background: #0f1a0f; }
+    .progress-row.done-noresult { border-color: #2a2a2a; opacity: 0.6; }
+    .progress-row.error { border-color: #4a2a2a; }
+    .progress-row.retrying { border-color: #9b6a1b; background: #1a150a; }
+    .progress-row.doh { border-color: #2a3a5a; }
+    .progress-row.doh.active { border-color: #4a9edd; }
+    .progress-row.doh.done { border-color: #2a4a5a; background: #0f151a; }
+
+    .progress-icon {
+      width: 20px; height: 20px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .progress-spinner {
+      width: 16px; height: 16px; border: 2px solid #2a2a4a;
+      border-top: 2px solid #d44a8c; border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    .progress-row.doh .progress-spinner { border-top-color: #4a9edd; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .progress-check { color: #2ecc71; font-size: 16px; font-weight: 700; }
+    .progress-x { color: #666; font-size: 14px; }
+    .progress-wait { color: #333; font-size: 16px; }
+    .progress-retry { color: #f39c12; font-size: 12px; font-weight: 700; }
+
+    .progress-origin {
+      font-weight: 700; color: #bbb; width: 36px; flex-shrink: 0;
+    }
+    .progress-row.doh .progress-origin { color: #7bbfee; }
+    .progress-row.active .progress-origin { color: #d44a8c; }
+    .progress-row.done .progress-origin { color: #2ecc71; }
+
+    .progress-status { color: #666; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .progress-row.active .progress-status { color: #9b9bb0; }
+    .progress-row.done .progress-status { color: #5a8a5a; }
+
+    .progress-price { font-weight: 700; color: #555; white-space: nowrap; }
+    .progress-row.done .progress-price { color: #2ecc71; }
+    .progress-row.doh.done .progress-price { color: #7bbfee; }
+
+    /* ── Results ── */
+    .results-section { display: none; }
+    .result-card {
+      background: #141428; border: 1px solid #2a2a4a; border-radius: 10px;
+      padding: 16px; margin-bottom: 10px;
+    }
+    .result-card.winner { border-color: #2ecc71; background: #0f1f15; }
+    .result-card.no-flights { opacity: 0.5; }
+    .result-header { display: flex; align-items: center; justify-content: space-between; }
+    .result-left { display: flex; align-items: center; gap: 12px; }
+    .result-rank { font-size: 20px; font-weight: 700; color: #555; width: 36px; text-align: center; }
+    .result-card.winner .result-rank { color: #2ecc71; }
+    .result-origin { font-size: 18px; font-weight: 700; color: #fff; }
+    .result-card.winner .result-origin { color: #2ecc71; }
+    .result-route { font-size: 12px; color: #777; margin-top: 2px; }
+    .result-price { text-align: right; }
+    .result-price-usd { font-size: 22px; font-weight: 700; color: #fff; }
+    .result-card.winner .result-price-usd { color: #2ecc71; }
+    .result-price-qar { font-size: 13px; color: #c0a050; margin-top: 1px; }
+    .result-price-local { font-size: 11px; color: #666; margin-top: 1px; }
+
+    .flight-details { margin-top: 12px; padding-top: 12px; border-top: 1px solid #222240; }
+    .flight-leg { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; font-size: 13px; }
+    .leg-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #777; width: 60px; flex-shrink: 0; }
+    .leg-time { color: #ccc; font-weight: 600; white-space: nowrap; }
+    .leg-arrow { color: #555; }
+    .leg-duration { color: #888; font-size: 12px; }
+    .leg-stop { background: #1f1f3a; border: 1px solid #333358; border-radius: 4px; padding: 2px 6px; font-size: 10px; color: #d44a8c; }
+    .leg-route { color: #777; font-size: 11px; }
+
+    .winner-banner {
+      background: linear-gradient(135deg, #0f2f1a 0%, #1a4028 100%);
+      border: 1px solid #2ecc71; border-radius: 10px; padding: 16px;
+      text-align: center; margin-bottom: 16px; display: none;
+    }
+    .winner-banner h2 { color: #2ecc71; font-size: 16px; font-weight: 700; }
+    .winner-banner .winner-price { font-size: 28px; font-weight: 700; color: #fff; margin-top: 4px; }
+    .winner-banner .winner-qar { font-size: 16px; color: #c0a050; margin-top: 2px; }
+    .winner-banner .winner-detail { font-size: 13px; color: #7dc9a0; margin-top: 4px; }
+
+    /* ── Comparison Card: Winner vs DOH side-by-side ── */
+    .comparison-section { display: none; margin-bottom: 20px; }
+    .comparison-card {
+      background: #141428; border: 1px solid #2a2a4a; border-radius: 12px; overflow: hidden;
+    }
+    .comparison-header {
+      background: #1a1a35; padding: 10px 16px;
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      color: #9b9bb0; letter-spacing: 0.5px; text-align: center;
+    }
+    .comparison-body { display: flex; }
+    .comparison-side {
+      flex: 1; padding: 20px; text-align: center;
+    }
+    .comparison-side.winner {
+      background: linear-gradient(180deg, #0f2f1a 0%, #141428 100%);
+      border-right: 1px solid #2a2a4a;
+    }
+    .comparison-side.doh {
+      background: linear-gradient(180deg, #0f1520 0%, #141428 100%);
+    }
+    .comparison-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .comparison-side.winner .comparison-label { color: #2ecc71; }
+    .comparison-side.doh .comparison-label { color: #4a9edd; }
+    .comparison-origin { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .comparison-side.winner .comparison-origin { color: #2ecc71; }
+    .comparison-side.doh .comparison-origin { color: #7bbfee; }
+    .comparison-route { font-size: 12px; color: #666; margin-bottom: 12px; }
+    .comparison-price { font-size: 32px; font-weight: 700; color: #fff; }
+    .comparison-price-qar { font-size: 14px; color: #c0a050; margin-top: 2px; }
+    .comparison-versus {
+      display: flex; align-items: center; justify-content: center;
+      padding: 16px; background: #0d0d1a; border-top: 1px solid #2a2a4a;
+    }
+    .comparison-savings {
+      font-size: 15px; font-weight: 600;
+      padding: 8px 20px; border-radius: 20px;
+    }
+    .comparison-savings.cheaper {
+      background: #0f2f1a; border: 1px solid #2ecc71; color: #2ecc71;
+    }
+    .comparison-savings.pricier {
+      background: #1a1a0a; border: 1px solid #f39c12; color: #f39c12;
+    }
+    .comparison-savings.same {
+      background: #1a1a2a; border: 1px solid #555; color: #888;
+    }
+
+    .notes {
+      background: #141428; border: 1px solid #2a2a4a; border-radius: 10px;
+      padding: 16px; margin-top: 20px; font-size: 12px; color: #777; line-height: 1.8;
+    }
+    .notes strong { color: #aaa; }
+
+    /* ── DOH Direct ── */
+    .doh-section { display: none; margin-top: 24px; }
+    .doh-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; color: #777;
+      letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .doh-section-title::before, .doh-section-title::after { content: ''; flex: 1; height: 1px; background: #222240; }
+    .doh-card { background: #141428; border: 1px solid #2a3a5a; border-radius: 10px; padding: 16px; }
+    .doh-header { display: flex; align-items: center; justify-content: space-between; }
+    .doh-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #4a9edd; letter-spacing: 0.5px; margin-bottom: 4px; }
+    .doh-origin { font-size: 18px; font-weight: 700; color: #7bbfee; }
+    .doh-route { font-size: 12px; color: #556a80; margin-top: 2px; }
+    .doh-price { text-align: right; }
+    .doh-price-usd { font-size: 22px; font-weight: 700; color: #7bbfee; }
+    .doh-price-qar { font-size: 13px; color: #c0a050; margin-top: 1px; }
+    .doh-price-local { font-size: 11px; color: #556a80; margin-top: 1px; }
+
+    .savings-banner { margin-top: 12px; padding: 10px 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; }
+    .savings-banner.cheaper { background: #0f2a0f; border: 1px solid #2ecc71; color: #7dc9a0; }
+    .savings-banner.pricier { background: #1a1a0a; border: 1px solid #f39c12; color: #c9a050; }
+    .savings-banner.same { background: #141428; border: 1px solid #3a3a5a; color: #888; }
+    .savings-banner strong { color: #fff; }
+
+    @media (max-width: 480px) {
+      .container { padding: 12px; }
+      .search-form { padding: 16px; }
+      .result-price-usd { font-size: 18px; }
+      .winner-banner .winner-price { font-size: 22px; }
+      .flight-leg { flex-wrap: wrap; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Qatar Airways Business Finder</h1>
+  <p>Find the cheapest QR Business Class fare from multiple origins</p>
+</div>
+
+<div class="container">
+
+  <div class="badge-row">
+    <span class="badge">Qatar Airways Only</span>
+    <span class="badge">Business Class</span>
+    <span class="badge">Via Doha (DOH)</span>
+    <span class="badge">Powered by ITA Matrix</span>
+  </div>
+
+  <div class="search-form">
+    <div class="form-row">
+      <label>Destination</label>
+      <input type="text" id="destination" placeholder="Airport code or city (e.g. CMN, London, Casablanca)" autocomplete="off">
+      <div id="destHint" style="font-size:12px; margin-top:4px; min-height:16px;"></div>
+    </div>
+    <div class="date-row">
+      <div class="form-row"><label>Departure</label><input type="date" id="depart"></div>
+      <div class="form-row"><label>Return</label><input type="date" id="returnDate"></div>
+    </div>
+    <div class="form-row">
+      <label>Compare from these airports</label>
+      <div class="origins-grid" id="originsGrid">
+        <label class="origin-chip selected"><input type="checkbox" value="DMM" checked> DMM</label>
+        <label class="origin-chip selected"><input type="checkbox" value="BAH" checked> BAH</label>
+        <label class="origin-chip selected"><input type="checkbox" value="RUH" checked> RUH</label>
+        <label class="origin-chip selected"><input type="checkbox" value="DXB" checked> DXB</label>
+        <label class="origin-chip selected"><input type="checkbox" value="AUH" checked> AUH</label>
+        <label class="origin-chip selected"><input type="checkbox" value="KWI" checked> KWI</label>
+        <label class="origin-chip selected"><input type="checkbox" value="MCT" checked> MCT</label>
+      </div>
+      <div class="add-origin">
+        <input type="text" id="newOrigin" placeholder="Add airport code..." maxlength="4">
+        <button class="btn-add" onclick="addOrigin()">+ Add</button>
+      </div>
+    </div>
+    <button class="btn-search" id="searchBtn" onclick="startSearch()">Search Flights</button>
+  </div>
+
+  <!-- Progress Dashboard: one row per origin -->
+  <div class="progress-dashboard" id="progressDashboard">
+    <div class="progress-dashboard-title">Search Progress</div>
+    <div id="progressRows"></div>
+  </div>
+
+  <!-- Live results: cards appear here as each search completes -->
+  <div class="results-section" id="liveResultsSection" style="display:none"></div>
+
+  <!-- Comparison: Winner vs DOH side-by-side -->
+  <div class="comparison-section" id="comparisonSection">
+    <div class="comparison-card">
+      <div class="comparison-header">Price Comparison</div>
+      <div class="comparison-body">
+        <div class="comparison-side winner">
+          <div class="comparison-label">Cheapest Origin</div>
+          <div class="comparison-origin" id="compWinnerOrigin">--</div>
+          <div class="comparison-route" id="compWinnerRoute">--</div>
+          <div class="comparison-price" id="compWinnerPrice">--</div>
+          <div class="comparison-price-qar" id="compWinnerQAR">--</div>
+        </div>
+        <div class="comparison-side doh">
+          <div class="comparison-label">DOH Direct</div>
+          <div class="comparison-origin">DOH</div>
+          <div class="comparison-route" id="compDohRoute">Doha non-stop</div>
+          <div class="comparison-price" id="compDohPrice">--</div>
+          <div class="comparison-price-qar" id="compDohQAR">--</div>
+        </div>
+      </div>
+      <div class="comparison-versus">
+        <div class="comparison-savings" id="compSavings">--</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="results-section" id="resultsSection"></div>
+
+  <div class="notes" id="notesSection" style="display:none">
+    <strong>How to book:</strong> ITA Matrix does not sell tickets. Use the flight details above to book on
+    <a href="https://www.qatarairways.com" target="_blank" style="color:#d44a8c">qatarairways.com</a> or your preferred OTA.<br>
+    <strong>Note:</strong> Prices may change. All fares are Qatar Airways operated, Business class, connecting via Doha (DOH).
+  </div>
+
+</div>
+
+<script>
+  const AIRPORT_NAMES = {
+    DMM: 'Dammam', BAH: 'Bahrain', RUH: 'Riyadh',
+    DXB: 'Dubai', AUH: 'Abu Dhabi', DOH: 'Doha',
+    JED: 'Jeddah', KWI: 'Kuwait', MCT: 'Muscat'
+  };
+
+  const today = new Date();
+  const dep = new Date(today); dep.setDate(dep.getDate() + 30);
+  const ret = new Date(dep); ret.setDate(ret.getDate() + 10);
+  document.getElementById('depart').value = dep.toISOString().split('T')[0];
+  document.getElementById('returnDate').value = ret.toISOString().split('T')[0];
+  document.getElementById('depart').min = today.toISOString().split('T')[0];
+  document.getElementById('returnDate').min = today.toISOString().split('T')[0];
+
+  document.querySelectorAll('.origin-chip').forEach(chip => {
+    chip.addEventListener('click', () => { chip.classList.toggle('selected', chip.querySelector('input').checked); });
+    chip.querySelector('input').addEventListener('change', function() { chip.classList.toggle('selected', this.checked); });
+  });
+
+  function addOrigin() {
+    const input = document.getElementById('newOrigin');
+    const code = input.value.trim().toUpperCase();
+    if (!code || code.length < 3) return;
+    const existing = document.querySelectorAll('.origin-chip input');
+    for (const cb of existing) { if (cb.value === code) { input.value = ''; return; } }
+    const chip = document.createElement('label');
+    chip.className = 'origin-chip selected';
+    chip.innerHTML = `<input type="checkbox" value="${code}" checked> ${code}`;
+    chip.addEventListener('click', () => { chip.classList.toggle('selected', chip.querySelector('input').checked); });
+    chip.querySelector('input').addEventListener('change', function() { chip.classList.toggle('selected', this.checked); });
+    document.getElementById('originsGrid').appendChild(chip);
+    input.value = '';
+  }
+  document.getElementById('newOrigin').addEventListener('keydown', (e) => { if (e.key === 'Enter') addOrigin(); });
+
+  let resolveTimer = null;
+  document.getElementById('destination').addEventListener('input', (e) => {
+    clearTimeout(resolveTimer);
+    const val = e.target.value.trim();
+    const hint = document.getElementById('destHint');
+    if (!val || val.length < 2) { hint.textContent = ''; return; }
+    resolveTimer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/resolve?q=${encodeURIComponent(val)}`);
+        const data = await res.json();
+        if (data.resolved) { hint.textContent = `-> ${data.resolved.label}`; hint.style.color = '#2ecc71'; }
+        else { hint.textContent = val.length === 3 ? `-> ${val.toUpperCase()} (as code)` : 'Unknown destination'; hint.style.color = val.length === 3 ? '#9b9bb0' : '#e74c3c'; }
+      } catch (err) { hint.textContent = ''; }
+    }, 300);
+  });
+
+  function flightDetailsHTML(r) {
+    if (!r.flights || r.flights.length === 0) return '';
+    const f = r.flights[0];
+    return `
+      <div class="flight-details">
+        <div class="flight-leg">
+          <span class="leg-label">Outbound</span>
+          <span class="leg-time">${f.outbound.depart || '-'}</span>
+          <span class="leg-arrow">-></span>
+          <span class="leg-stop">DOH</span>
+          <span class="leg-arrow">-></span>
+          <span class="leg-time">${f.outbound.arrive || '-'}</span>
+          <span class="leg-duration">${f.outbound.duration || ''}</span>
+          <span class="leg-route">${f.outbound.route || ''}</span>
+        </div>
+        <div class="flight-leg">
+          <span class="leg-label">Return</span>
+          <span class="leg-time">${f.inbound.depart || '-'}</span>
+          <span class="leg-arrow">-></span>
+          <span class="leg-stop">DOH</span>
+          <span class="leg-arrow">-></span>
+          <span class="leg-time">${f.inbound.arrive || '-'}</span>
+          <span class="leg-duration">${f.inbound.duration || ''}</span>
+          <span class="leg-route">${f.inbound.route || ''}</span>
+        </div>
+      </div>`;
+  }
+
+  // ── Update a progress row ──
+  function setRowState(origin, state, statusText, priceText) {
+    const row = document.getElementById(`prog-${origin}`);
+    if (!row) return;
+    const icon = row.querySelector('.progress-icon');
+    const status = row.querySelector('.progress-status');
+    const price = row.querySelector('.progress-price');
+
+    row.className = 'progress-row' + (origin === 'DOH' ? ' doh' : '');
+
+    if (state === 'waiting') {
+      icon.innerHTML = '<span class="progress-wait">-</span>';
+      status.textContent = 'Waiting...';
+    } else if (state === 'active') {
+      row.classList.add('active');
+      icon.innerHTML = '<div class="progress-spinner"></div>';
+      status.textContent = statusText || 'Searching...';
+    } else if (state === 'done') {
+      row.classList.add('done');
+      icon.innerHTML = '<span class="progress-check">&#10003;</span>';
+      status.textContent = statusText || 'Done';
+      if (priceText) price.textContent = priceText;
+    } else if (state === 'done-noresult') {
+      row.classList.add('done-noresult');
+      icon.innerHTML = '<span class="progress-x">-</span>';
+      status.textContent = statusText || 'No flights';
+    } else if (state === 'retrying') {
+      row.classList.add('retrying');
+      icon.innerHTML = '<span class="progress-retry">&#8635;</span>';
+      status.textContent = statusText || 'Retrying...';
+    } else if (state === 'error') {
+      row.classList.add('error');
+      icon.innerHTML = '<span class="progress-x">!</span>';
+      status.textContent = statusText || 'Error';
+    }
+  }
+
+  let resultsData = [];
+  let resolvedDest = ''; // Shared with renderLiveResults
+
+  // ── Render live results sorted by price (shows full cards as they arrive) ──
+  function renderLiveResults() {
+    const section = document.getElementById('liveResultsSection');
+    section.style.display = 'block';
+    section.innerHTML = '';
+    
+    // Sort by USD
+    const sorted = resultsData
+      .filter(r => r.found && r.cheapestUSD)
+      .sort((a, b) => a.cheapestUSD - b.cheapestUSD);
+    
+    if (sorted.length === 0) return;
+    
+    sorted.forEach((r, i) => {
+      const name = AIRPORT_NAMES[r.origin] || r.origin;
+      const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
+      const card = document.createElement('div');
+      card.className = 'result-card' + (i === 0 ? ' winner' : '');
+      card.id = `live-${r.origin}`;
+      card.innerHTML = `
+        <div class="result-header">
+          <div class="result-left">
+            <div class="result-rank">#${i + 1}</div>
+            <div>
+              <div class="result-origin">${r.origin}</div>
+              <div class="result-route">${name} -> ${resolvedDest} via DOH</div>
+            </div>
+          </div>
+          <div class="result-price">
+            <div class="result-price-usd">$${Number(r.cheapestUSD).toLocaleString()}</div>
+            <div class="result-price-qar">QAR ${Number(qar).toLocaleString()}</div>
+            <div class="result-price-local">${r.cheapestLocal?.currency || ''} ${r.cheapestLocal?.amount?.toLocaleString() || ''}</div>
+          </div>
+        </div>
+        ${flightDetailsHTML(r)}`;
+      section.appendChild(card);
+    });
+  }
+
+  async function startSearch() {
+    const destinationRaw = document.getElementById('destination').value.trim();
+    const departVal = document.getElementById('depart').value;
+    const returnVal = document.getElementById('returnDate').value;
+
+    if (!destinationRaw) { alert('Enter a destination'); return; }
+    if (!departVal || !returnVal) { alert('Select dates'); return; }
+    if (new Date(returnVal) <= new Date(departVal)) { alert('Return must be after departure'); return; }
+
+    const origins = [];
+    document.querySelectorAll('.origin-chip input:checked').forEach(cb => origins.push(cb.value));
+    if (origins.length === 0) { alert('Select at least one origin'); return; }
+
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    btn.textContent = 'Searching...';
+
+    // Reset UI
+    document.getElementById('resultsSection').style.display = 'none';
+    document.getElementById('resultsSection').innerHTML = '';
+    document.getElementById('liveResultsSection').style.display = 'none';
+    document.getElementById('liveResultsSection').innerHTML = '';
+    document.getElementById('comparisonSection').style.display = 'none';
+    document.getElementById('notesSection').style.display = 'none';
+
+    // Build progress dashboard
+    const dashboard = document.getElementById('progressDashboard');
+    dashboard.style.display = 'block';
+    const rowsContainer = document.getElementById('progressRows');
+    rowsContainer.innerHTML = '';
+
+    // One row per origin + DOH
+    const allCodes = [...origins, 'DOH'];
+    allCodes.forEach(code => {
+      const name = AIRPORT_NAMES[code] || code;
+      const isDOH = code === 'DOH';
+      const row = document.createElement('div');
+      row.className = 'progress-row' + (isDOH ? ' doh' : '');
+      row.id = `prog-${code}`;
+      row.innerHTML = `
+        <div class="progress-icon"><span class="progress-wait">-</span></div>
+        <div class="progress-origin">${code}</div>
+        <div class="progress-status">${isDOH ? 'DOH non-stop benchmark' : name} — Waiting...</div>
+        <div class="progress-price"></div>
+      `;
+      rowsContainer.appendChild(row);
+    });
+
+    resultsData = [];
+
+    const params = new URLSearchParams({ destination: destinationRaw, depart: departVal, returnDate: returnVal, origins: origins.join(',') });
+    const eventSource = new EventSource(`/api/search?${params}`);
+
+    resolvedDest = destinationRaw;
+
+    eventSource.addEventListener('info', (e) => {
+      const data = JSON.parse(e.data);
+      resolvedDest = data.destinationLabel || data.destination;
+    });
+
+    eventSource.addEventListener('progress', (e) => {
+      const data = JSON.parse(e.data);
+      if (data.status === 'done') return; // handled by result/doh_result
+      setRowState(data.origin, 'active', data.detail || 'Searching...');
+    });
+
+    eventSource.addEventListener('result', (e) => {
+      const data = JSON.parse(e.data);
+      
+      // Update or add result (avoid duplicates on retry)
+      const existingIdx = resultsData.findIndex(r => r.origin === data.origin);
+      if (existingIdx >= 0) {
+        resultsData[existingIdx] = data;
+      } else {
+        resultsData.push(data);
+      }
+      
+      // Update progress row
+      if (data.found && data.cheapestUSD) {
+        setRowState(data.origin, 'done', `$${Number(data.cheapestUSD).toLocaleString()}`, `$${Number(data.cheapestUSD).toLocaleString()}`);
+      } else {
+        setRowState(data.origin, 'done-noresult', 'No flights found');
+      }
+      
+      // ── Render live result card with full details ──
+      renderLiveResults();
+    });
+
+    eventSource.addEventListener('doh_result', (e) => {
+      const data = JSON.parse(e.data);
+      if (data.found && data.cheapestUSD) {
+        setRowState('DOH', 'done', `$${Number(data.cheapestUSD).toLocaleString()}`, `$${Number(data.cheapestUSD).toLocaleString()}`);
+      } else {
+        setRowState('DOH', 'done-noresult', 'No direct flights');
+      }
+    });
+
+    eventSource.addEventListener('retry_start', (e) => {
+      const data = JSON.parse(e.data);
+      data.failedOrigins.forEach(origin => {
+        setRowState(origin, 'retrying', 'Retrying...');
+      });
+      if (data.dohFailed) {
+        setRowState('DOH', 'retrying', 'Retrying DOH...');
+      }
+    });
+
+    eventSource.addEventListener('retry_progress', (e) => {
+      const data = JSON.parse(e.data);
+      setRowState(data.origin, 'retrying', data.detail || 'Retrying...');
+    });
+
+    eventSource.addEventListener('done', (e) => {
+      const data = JSON.parse(e.data);
+      eventSource.close();
+
+      // Hide live results, show final sorted results
+      document.getElementById('liveResultsSection').style.display = 'none';
+      document.getElementById('resultsSection').style.display = 'block';
+      const section = document.getElementById('resultsSection');
+      section.innerHTML = '';
+      const sorted = data.results || [];
+
+      const doh = data.dohDirect;
+
+      // ── Render Comparison Card: Winner vs DOH ──
+      if (sorted.length > 0) {
+        const winner = sorted[0];
+        const winnerName = AIRPORT_NAMES[winner.origin] || winner.origin;
+        const winnerQAR = winner.cheapestQAR || Math.round(winner.cheapestUSD / 0.275);
+
+        // Winner side
+        document.getElementById('compWinnerOrigin').textContent = winner.origin;
+        document.getElementById('compWinnerRoute').textContent = `${winnerName} via DOH`;
+        document.getElementById('compWinnerPrice').textContent = `$${Number(winner.cheapestUSD).toLocaleString()}`;
+        document.getElementById('compWinnerQAR').textContent = `QAR ${Number(winnerQAR).toLocaleString()}`;
+
+        // DOH side
+        if (doh && doh.found && doh.cheapestUSD) {
+          const dohQAR = doh.cheapestQAR || Math.round(doh.cheapestUSD / 0.275);
+          document.getElementById('compDohRoute').textContent = `Doha non-stop`;
+          document.getElementById('compDohPrice').textContent = `$${Number(doh.cheapestUSD).toLocaleString()}`;
+          document.getElementById('compDohQAR').textContent = `QAR ${Number(dohQAR).toLocaleString()}`;
+
+          // Savings calculation
+          const winnerUSD = Number(winner.cheapestUSD);
+          const dohUSD = Number(doh.cheapestUSD);
+          const diff = dohUSD - winnerUSD;
+          const pct = Math.abs(Math.round((Math.abs(diff) / Math.max(winnerUSD, dohUSD)) * 100));
+          const savingsEl = document.getElementById('compSavings');
+
+          if (diff > 20) {
+            savingsEl.className = 'comparison-savings cheaper';
+            savingsEl.innerHTML = `${winner.origin} saves <strong>$${Math.round(diff).toLocaleString()}</strong> (${pct}% cheaper)`;
+          } else if (diff < -20) {
+            savingsEl.className = 'comparison-savings pricier';
+            savingsEl.innerHTML = `DOH is <strong>$${Math.round(Math.abs(diff)).toLocaleString()}</strong> cheaper (${pct}%)`;
+          } else {
+            savingsEl.className = 'comparison-savings same';
+            savingsEl.innerHTML = `Prices are similar`;
+          }
+        } else {
+          document.getElementById('compDohRoute').textContent = `No direct flights`;
+          document.getElementById('compDohPrice').textContent = '--';
+          document.getElementById('compDohQAR').textContent = '';
+          document.getElementById('compSavings').className = 'comparison-savings same';
+          document.getElementById('compSavings').textContent = 'No DOH direct flights available';
+        }
+
+        document.getElementById('comparisonSection').style.display = 'block';
+      }
+
+      // ── Render full results list ──
+      if (sorted.length > 0) {
+        sorted.forEach((r, i) => {
+          const name = AIRPORT_NAMES[r.origin] || r.origin;
+          const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
+          const card = document.createElement('div');
+          card.className = 'result-card' + (i === 0 ? ' winner' : '');
+          card.innerHTML = `
+            <div class="result-header">
+              <div class="result-left">
+                <div class="result-rank">#${i + 1}</div>
+                <div>
+                  <div class="result-origin">${r.origin}</div>
+                  <div class="result-route">${name} -> ${resolvedDest} via DOH</div>
+                </div>
+              </div>
+              <div class="result-price">
+                <div class="result-price-usd">$${Number(r.cheapestUSD).toLocaleString()}</div>
+                <div class="result-price-qar">QAR ${Number(qar).toLocaleString()}</div>
+                <div class="result-price-local">${r.cheapestLocal?.currency || ''} ${r.cheapestLocal?.amount?.toLocaleString() || ''}</div>
+              </div>
+            </div>
+            ${flightDetailsHTML(r)}`;
+          section.appendChild(card);
+        });
+      } else {
+        section.innerHTML = '<div class="result-card"><div class="result-header"><div class="result-left"><div class="result-origin">No flights found for any origin</div></div></div></div>';
+      }
+
+      document.getElementById('notesSection').style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Search Flights';
+    });
+
+    eventSource.onerror = () => {
+      eventSource.close();
+      btn.disabled = false;
+      btn.textContent = 'Search Flights';
+    };
+  }
+</script>
+</body>
+</html>
