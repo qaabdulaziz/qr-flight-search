@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const path = require('path');
 const { searchFlight, searchDOHDirect } = require('./matrix_engine');
@@ -5,9 +7,16 @@ const { resolveAirport } = require('./airports');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-// Batch size = total searches. All origins run in parallel.
-// Override with MAX_PARALLEL env var if needed (e.g. MAX_PARALLEL=2 on low-RAM VPS)
-const MAX_PARALLEL = process.env.MAX_PARALLEL ? parseInt(process.env.MAX_PARALLEL) : 0; // 0 = unlimited
+
+// MAX_PARALLEL: max concurrent Chromium instances.
+// 0 = unlimited (good for high-RAM machines), 2 = safe for 512MB-1GB VPS.
+const MAX_PARALLEL_RAW = parseInt(process.env.MAX_PARALLEL, 10);
+const MAX_PARALLEL = Number.isInteger(MAX_PARALLEL_RAW) && MAX_PARALLEL_RAW > 0 ? MAX_PARALLEL_RAW : 0;
+
+// Global unhandled rejection handler — prevents process crash from unexpected async errors
+process.on('unhandledRejection', (reason) => {
+  console.error('[UNHANDLED REJECTION]', reason);
+});
 
 // Serve static frontend
 app.use(express.static(path.join(__dirname, 'public')));
@@ -15,6 +24,16 @@ app.use(express.json());
 
 // Default origins (7 airports)
 const DEFAULT_ORIGINS = ['DMM', 'BAH', 'RUH', 'DXB', 'AUH', 'KWI', 'MCT'];
+
+// Validate airport code: exactly 3 uppercase letters
+function isValidAirportCode(code) {
+  return /^[A-Z]{3}$/.test(code);
+}
+
+// Validate date string: YYYY-MM-DD
+function isValidDate(str) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(str) && !isNaN(new Date(str).getTime());
+}
 
 // Resolve destination endpoint
 app.get('/api/resolve', (req, res) => {
@@ -24,51 +43,60 @@ app.get('/api/resolve', (req, res) => {
   res.json({ resolved: result });
 });
 
-/**
- * Run an array of async tasks in batches of `batchSize`.
- * Each task is a function that returns a Promise.
- */
-async function runInBatches(tasks, batchSize) {
-  const results = [];
-  for (let i = 0; i < tasks.length; i += batchSize) {
-    const batch = tasks.slice(i, i + batchSize);
-    const batchResults = await Promise.allSettled(batch.map(fn => fn()));
-    results.push(...batchResults);
-  }
-  return results;
-}
-
 // SSE endpoint for flight search
 app.get('/api/search', async (req, res) => {
   const { destination, depart, returnDate, origins } = req.query;
 
-  // Validate inputs
+  // Input validation
   if (!destination || !depart || !returnDate) {
-    res.status(400).json({ error: 'Missing required fields: destination, depart, returnDate' });
-    return;
+    return res.status(400).json({ error: 'Missing required fields: destination, depart, returnDate' });
+  }
+  if (!isValidDate(depart) || !isValidDate(returnDate)) {
+    return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD.' });
+  }
+  if (new Date(returnDate) <= new Date(depart)) {
+    return res.status(400).json({ error: 'returnDate must be after depart.' });
   }
 
-  // Resolve destination (city name or airport code)
+  // Resolve destination
   const resolved = resolveAirport(destination);
-  const destCode = resolved ? resolved.code : destination.toUpperCase();
+  const destCode = resolved ? resolved.code : destination.toUpperCase().slice(0, 3);
   const destLabel = resolved ? resolved.label : destCode;
 
-  // Parse origins
-  const originList = origins ? origins.split(',').map(o => o.trim().toUpperCase()) : DEFAULT_ORIGINS;
+  if (!isValidAirportCode(destCode)) {
+    return res.status(400).json({ error: `Cannot resolve destination: ${destination}` });
+  }
 
-  // Total searches = origins + DOH direct
-  const totalSearches = originList.length + 1;
+  // Parse and validate origins
+  const rawOrigins = origins ? origins.split(',').map(o => o.trim().toUpperCase().slice(0, 3)) : DEFAULT_ORIGINS;
+  const originList = rawOrigins.filter(isValidAirportCode);
+  if (originList.length === 0) {
+    return res.status(400).json({ error: 'No valid origin airport codes provided.' });
+  }
+
+  const totalSearches = originList.length + 1; // +1 for DOH
 
   // Set up SSE
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
-    'Access-Control-Allow-Origin': '*'
+    'Connection': 'keep-alive'
+    // No wildcard CORS — frontend is served from same origin
+  });
+
+  let clientConnected = true;
+  req.on('close', () => {
+    clientConnected = false;
+    console.log('[SSE] Client disconnected, stopping search');
   });
 
   const send = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    if (!clientConnected) return;
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch (_) {
+      clientConnected = false;
+    }
   };
 
   send('info', {
@@ -83,95 +111,70 @@ app.get('/api/search', async (req, res) => {
     routing: 'Via DOH'
   });
 
-  // Build all search tasks: DOH benchmark FIRST, then origins
-  // Each task is an object { type, origin, index, fn }
+  // Build all search tasks: DOH first, then origins
   const allTasks = [];
 
-  // DOH direct benchmark search - FIRST
+  // DOH direct benchmark — FIRST
   allTasks.push({
     type: 'doh',
     origin: 'DOH',
     index: 1,
     fn: () => {
-      send('progress', {
-        origin: 'DOH', index: 1, total: totalSearches,
-        status: 'searching', isDOHDirect: true
-      });
+      send('progress', { origin: 'DOH', index: 1, total: totalSearches, status: 'searching', isDOHDirect: true });
       return searchDOHDirect(destCode, depart, returnDate, (progress) => {
-        send('progress', {
-          origin: 'DOH', index: 1, total: totalSearches,
-          status: 'searching', detail: progress.message, isDOHDirect: true
-        });
+        send('progress', { origin: 'DOH', index: 1, total: totalSearches, status: 'searching', detail: progress.message, isDOHDirect: true });
       });
     }
   });
 
-  // Origin searches - AFTER DOH
+  // Origin searches
   originList.forEach((origin, i) => {
     allTasks.push({
       type: 'origin',
       origin,
-      index: i + 2, // +2 because DOH is index 1
+      index: i + 2,
       fn: () => {
-        send('progress', {
-          origin, index: i + 2, total: totalSearches, status: 'searching'
-        });
+        send('progress', { origin, index: i + 2, total: totalSearches, status: 'searching' });
         return searchFlight(origin, destCode, depart, returnDate, (progress) => {
-          send('progress', {
-            origin, index: i + 2, total: totalSearches,
-            status: 'searching', detail: progress.message
-          });
+          send('progress', { origin, index: i + 2, total: totalSearches, status: 'searching', detail: progress.message });
         });
       }
     });
   });
 
-  // Run in batches - default: all parallel. Use MAX_PARALLEL to limit.
   const batchSize = MAX_PARALLEL > 0 ? MAX_PARALLEL : allTasks.length;
   const originResults = new Map(); // origin -> result
   let dohResult = null;
   let completed = 0;
 
-  console.log(`[SEARCH] ${totalSearches} searches, batch size: ${batchSize}`);
+  console.log(`[SEARCH] dest=${destCode} origins=${originList.join(',')} total=${totalSearches} batchSize=${batchSize}`);
 
   for (let i = 0; i < allTasks.length; i += batchSize) {
+    if (!clientConnected) break;
+
     const batch = allTasks.slice(i, i + batchSize);
-    const batchNames = batch.map(t => t.origin).join(' + ');
-    console.log(`[BATCH] Running: ${batchNames}`);
+    console.log(`[BATCH] Running: ${batch.map(t => t.origin).join(' + ')}`);
 
     const settled = await Promise.allSettled(batch.map(t => t.fn()));
 
-    // Process results from this batch
     for (let j = 0; j < batch.length; j++) {
       const task = batch[j];
       const outcome = settled[j];
       completed++;
 
       if (task.type === 'doh') {
-        if (outcome.status === 'fulfilled') {
-          dohResult = outcome.value;
-          send('doh_result', dohResult);
-        } else {
-          dohResult = { found: false, origin: 'DOH', isDOHDirect: true, error: outcome.reason?.message };
-          send('doh_result', dohResult);
-        }
+        dohResult = outcome.status === 'fulfilled'
+          ? outcome.value
+          : { found: false, origin: 'DOH', isDOHDirect: true, error: outcome.reason?.message };
+        send('doh_result', dohResult);
       } else {
-        let result;
-        if (outcome.status === 'fulfilled') {
-          result = outcome.value;
-          originResults.set(task.origin, result);
-        } else {
-          result = { origin: task.origin, found: false, error: outcome.reason?.message };
-          originResults.set(task.origin, result);
-        }
-        send('result', {
-          origin: task.origin, index: task.index, total: totalSearches,
-          ...result
-        });
+        const result = outcome.status === 'fulfilled'
+          ? outcome.value
+          : { origin: task.origin, found: false, error: outcome.reason?.message };
+        originResults.set(task.origin, result);
+        send('result', { origin: task.origin, index: task.index, total: totalSearches, ...result });
       }
 
-      // Update progress bar
-      const pct = Math.round((completed / totalSearches) * 100);
       send('progress', {
         origin: task.origin, index: completed, total: totalSearches,
         status: 'done', detail: `Completed (${completed}/${totalSearches})`
@@ -179,63 +182,57 @@ app.get('/api/search', async (req, res) => {
     }
   }
 
-  // ── RETRY PHASE: Retry failed searches once ──
+  // ── RETRY PHASE ──
+  // Only retry origins that errored (not genuine "no flights found" results — those are valid)
   const failedOrigins = [];
   for (const [origin, result] of originResults) {
-    if (!result.found || !result.cheapestUSD) {
-      failedOrigins.push(origin);
-    }
+    if (result.error) failedOrigins.push(origin);
   }
-  const dohFailed = dohResult && (!dohResult.found || !dohResult.cheapestUSD);
+  const dohFailed = dohResult && !!dohResult.error;
 
-  if (failedOrigins.length > 0 || dohFailed) {
+  if ((failedOrigins.length > 0 || dohFailed) && clientConnected) {
     const retryTotal = failedOrigins.length + (dohFailed ? 1 : 0);
     send('retry_start', { failedOrigins, dohFailed, retryTotal });
-    console.log(`[RETRY] Retrying ${retryTotal} failed searches: ${failedOrigins.join(', ')}${dohFailed ? ' + DOH' : ''}`);
+    console.log(`[RETRY] Retrying ${retryTotal} errored: ${failedOrigins.join(', ')}${dohFailed ? ' + DOH' : ''}`);
 
-    // Retry DOH if failed
-    if (dohFailed) {
+    if (dohFailed && clientConnected) {
       send('retry_progress', { origin: 'DOH', isDOHDirect: true });
       try {
-        const retryResult = await searchDOHDirect(destCode, depart, returnDate, (progress) => {
-          send('retry_progress', { origin: 'DOH', detail: progress.message, isDOHDirect: true });
+        const retryResult = await searchDOHDirect(destCode, depart, returnDate, (p) => {
+          send('retry_progress', { origin: 'DOH', detail: p.message, isDOHDirect: true });
         });
         if (retryResult && retryResult.found && retryResult.cheapestUSD) {
           dohResult = retryResult;
-          console.log(`[RETRY] DOH succeeded on retry`);
+          console.log('[RETRY] DOH succeeded on retry');
         }
-        send('doh_result', dohResult);
       } catch (err) {
-        console.log(`[RETRY] DOH still failed: ${err.message}`);
+        console.error('[RETRY] DOH still failed:', err.message);
       }
+      send('doh_result', dohResult);
     }
 
-    // Retry failed origins in batches
     const retryBatchSize = MAX_PARALLEL > 0 ? MAX_PARALLEL : failedOrigins.length;
     for (let i = 0; i < failedOrigins.length; i += retryBatchSize) {
+      if (!clientConnected) break;
       const batch = failedOrigins.slice(i, i + retryBatchSize);
       const retryTasks = batch.map(origin => {
         send('retry_progress', { origin });
-        return searchFlight(origin, destCode, depart, returnDate, (progress) => {
-          send('retry_progress', { origin, detail: progress.message });
+        return searchFlight(origin, destCode, depart, returnDate, (p) => {
+          send('retry_progress', { origin, detail: p.message });
         }).then(result => ({ origin, result }))
           .catch(err => ({ origin, result: { origin, found: false, error: err.message } }));
       });
 
       const retryResults = await Promise.all(retryTasks);
       for (const { origin, result } of retryResults) {
-        if (result && result.found && result.cheapestUSD) {
-          originResults.set(origin, result);
-          console.log(`[RETRY] ${origin} succeeded: $${result.cheapestUSD}`);
-        } else {
-          console.log(`[RETRY] ${origin} still no flights`);
-        }
+        originResults.set(origin, result);
+        console.log(`[RETRY] ${origin}: ${result.found ? '$' + result.cheapestUSD : 'still no flights'}`);
         send('result', { origin, ...result, isRetry: true });
       }
     }
   }
 
-  // Sort by USD price
+  // Final sorted results
   const validResults = Array.from(originResults.values()).filter(r => r.found && r.cheapestUSD);
   validResults.sort((a, b) => a.cheapestUSD - b.cheapestUSD);
 
@@ -252,11 +249,11 @@ app.get('/api/search', async (req, res) => {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', defaultOrigins: DEFAULT_ORIGINS, maxParallel: MAX_PARALLEL || 'unlimited' });
+  res.json({ status: 'ok', version: '2.0', defaultOrigins: DEFAULT_ORIGINS, maxParallel: MAX_PARALLEL || 'unlimited' });
 });
 
 app.listen(PORT, () => {
-  console.log(`QR Flight Search running on http://localhost:${PORT}`);
+  console.log(`QR Flight Search v2 running on http://localhost:${PORT}`);
   console.log(`Default origins: ${DEFAULT_ORIGINS.join(', ')}`);
   console.log(`Parallel: ${MAX_PARALLEL > 0 ? MAX_PARALLEL : 'all at once'}`);
   console.log('Airline: Qatar Airways | Cabin: Business | Routing: O:QR+ X:DOH');

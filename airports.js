@@ -58,6 +58,11 @@ const CITY_TO_AIRPORT = {
   'auckland': 'AKL',
 };
 
+// Reverse map: IATA code -> city name (for richer labels on direct code input)
+const CODE_TO_CITY = Object.fromEntries(
+  Object.entries(CITY_TO_AIRPORT).map(([city, code]) => [code, city])
+);
+
 /**
  * Resolve a user input to an airport code.
  * Accepts: airport code (CMN), city name (Casablanca), or city + airport (London Heathrow)
@@ -66,28 +71,37 @@ const CITY_TO_AIRPORT = {
 function resolveAirport(input) {
   if (!input) return null;
   const cleaned = input.trim();
+  const lower = cleaned.toLowerCase();
 
-  // If it's already a 3-letter airport code
-  if (/^[A-Z]{3}$/i.test(cleaned)) {
-    return { code: cleaned.toUpperCase(), label: cleaned.toUpperCase() };
+  // If it's already a 3-letter alpha airport code
+  if (/^[A-Za-z]{3}$/.test(cleaned)) {
+    const code = cleaned.toUpperCase();
+    const cityName = CODE_TO_CITY[code];
+    const label = cityName
+      ? `${cityName.charAt(0).toUpperCase() + cityName.slice(1)} (${code})`
+      : code;
+    return { code, label };
   }
 
-  // Try exact city match
-  const lower = cleaned.toLowerCase();
+  // Exact city match
   if (CITY_TO_AIRPORT[lower]) {
     return { code: CITY_TO_AIRPORT[lower], label: `${cleaned} (${CITY_TO_AIRPORT[lower]})` };
   }
 
-  // Try partial match
-  for (const [city, code] of Object.entries(CITY_TO_AIRPORT)) {
-    if (city.includes(lower) || lower.includes(city)) {
-      return { code, label: `${city.charAt(0).toUpperCase() + city.slice(1)} (${code})` };
+  // Partial match — only for inputs of 3+ chars, and only startsWith to avoid false matches
+  // e.g. "lon" -> "london", but "la" won't accidentally match "kuala lumpur"
+  if (lower.length >= 3) {
+    for (const [city, code] of Object.entries(CITY_TO_AIRPORT)) {
+      if (city.startsWith(lower)) {
+        return { code, label: `${city.charAt(0).toUpperCase() + city.slice(1)} (${code})` };
+      }
     }
-  }
-
-  // If nothing matched but it's 3+ chars, assume it's an airport code
-  if (cleaned.length === 3) {
-    return { code: cleaned.toUpperCase(), label: cleaned.toUpperCase() };
+    // Fallback: input starts with city name (e.g. "London Heathrow" -> "london")
+    for (const [city, code] of Object.entries(CITY_TO_AIRPORT)) {
+      if (lower.startsWith(city)) {
+        return { code, label: `${city.charAt(0).toUpperCase() + city.slice(1)} (${code})` };
+      }
+    }
   }
 
   return null;

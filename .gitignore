@@ -1,7 +1,11 @@
 # Dependencies
 node_modules/
 
-# Environment variables (contains secrets)
+# Playwright browser downloads (can be 300MB+)
+ms-playwright/
+.playwright/
+
+# Environment variables (local config — not committed)
 .env
 
 # Logs
@@ -23,6 +27,9 @@ Thumbs.db
 
 # Deployment script (contains credentials)
 deploy.js
+
+# Backup files
+*.bak
 
 # Debug/helper scripts
 check.js

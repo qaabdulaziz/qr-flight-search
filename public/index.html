@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Business Class Finder</title>
+  <title>QR Business Class Finder v2.0.0</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -291,7 +291,7 @@
         <label class="origin-chip selected"><input type="checkbox" value="MCT" checked> MCT</label>
       </div>
       <div class="add-origin">
-        <input type="text" id="newOrigin" placeholder="Add airport code..." maxlength="4">
+        <input type="text" id="newOrigin" placeholder="Add airport code..." maxlength="3">
         <button class="btn-add" onclick="addOrigin()">+ Add</button>
       </div>
     </div>
@@ -341,18 +341,38 @@
     <strong>Note:</strong> Prices may change. All fares are Qatar Airways operated, Business class, connecting via Doha (DOH).
   </div>
 
+  <div style="text-align:center; margin-top:24px; padding-bottom:16px; font-size:11px; color:#333355;">
+    v2.0.0
+  </div>
+
 </div>
 
 <script>
+  // Sanitize any value before inserting into innerHTML
+  function esc(val) {
+    if (val === null || val === undefined) return '';
+    return String(val)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  // Format numbers with explicit en-US locale to avoid regional separators
+  function fmt(n) { return Number(n).toLocaleString('en-US'); }
+
   const AIRPORT_NAMES = {
     DMM: 'Dammam', BAH: 'Bahrain', RUH: 'Riyadh',
     DXB: 'Dubai', AUH: 'Abu Dhabi', DOH: 'Doha',
     JED: 'Jeddah', KWI: 'Kuwait', MCT: 'Muscat'
   };
 
+  // Default dates: depart = 1 month from today, return = 1 month after depart (2 months from today)
+  // Uses setMonth() so it respects month lengths correctly (e.g. Jan 31 + 1 month = Feb 28)
   const today = new Date();
-  const dep = new Date(today); dep.setDate(dep.getDate() + 30);
-  const ret = new Date(dep); ret.setDate(ret.getDate() + 10);
+  const dep = new Date(today); dep.setMonth(dep.getMonth() + 1);
+  const ret = new Date(dep);   ret.setMonth(ret.getMonth() + 1);
   document.getElementById('depart').value = dep.toISOString().split('T')[0];
   document.getElementById('returnDate').value = ret.toISOString().split('T')[0];
   document.getElementById('depart').min = today.toISOString().split('T')[0];
@@ -366,14 +386,18 @@
   function addOrigin() {
     const input = document.getElementById('newOrigin');
     const code = input.value.trim().toUpperCase();
-    if (!code || code.length < 3) return;
+    if (!code || code.length !== 3 || !/^[A-Z]{3}$/.test(code)) { input.value = ''; return; }
     const existing = document.querySelectorAll('.origin-chip input');
     for (const cb of existing) { if (cb.value === code) { input.value = ''; return; } }
+    // Build chip safely without innerHTML to prevent XSS
     const chip = document.createElement('label');
     chip.className = 'origin-chip selected';
-    chip.innerHTML = `<input type="checkbox" value="${code}" checked> ${code}`;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.value = code; cb.checked = true;
+    const txt = document.createTextNode(' ' + code);
+    chip.appendChild(cb); chip.appendChild(txt);
     chip.addEventListener('click', () => { chip.classList.toggle('selected', chip.querySelector('input').checked); });
-    chip.querySelector('input').addEventListener('change', function() { chip.classList.toggle('selected', this.checked); });
+    cb.addEventListener('change', function() { chip.classList.toggle('selected', this.checked); });
     document.getElementById('originsGrid').appendChild(chip);
     input.value = '';
   }
@@ -398,27 +422,28 @@
   function flightDetailsHTML(r) {
     if (!r.flights || r.flights.length === 0) return '';
     const f = r.flights[0];
+    const ob = f.outbound || {}; const ib = f.inbound || {};
     return `
       <div class="flight-details">
         <div class="flight-leg">
           <span class="leg-label">Outbound</span>
-          <span class="leg-time">${f.outbound.depart || '-'}</span>
-          <span class="leg-arrow">-></span>
-          <span class="leg-stop">DOH</span>
-          <span class="leg-arrow">-></span>
-          <span class="leg-time">${f.outbound.arrive || '-'}</span>
-          <span class="leg-duration">${f.outbound.duration || ''}</span>
-          <span class="leg-route">${f.outbound.route || ''}</span>
+          <span class="leg-time">${esc(ob.depart) || '-'}</span>
+          <span class="leg-arrow">-&gt;</span>
+          <span class="leg-stop">${esc(ob.stop) || 'DOH'}</span>
+          <span class="leg-arrow">-&gt;</span>
+          <span class="leg-time">${esc(ob.arrive) || '-'}</span>
+          <span class="leg-duration">${esc(ob.duration)}</span>
+          <span class="leg-route">${esc(ob.route)}</span>
         </div>
         <div class="flight-leg">
           <span class="leg-label">Return</span>
-          <span class="leg-time">${f.inbound.depart || '-'}</span>
-          <span class="leg-arrow">-></span>
-          <span class="leg-stop">DOH</span>
-          <span class="leg-arrow">-></span>
-          <span class="leg-time">${f.inbound.arrive || '-'}</span>
-          <span class="leg-duration">${f.inbound.duration || ''}</span>
-          <span class="leg-route">${f.inbound.route || ''}</span>
+          <span class="leg-time">${esc(ib.depart) || '-'}</span>
+          <span class="leg-arrow">-&gt;</span>
+          <span class="leg-stop">${esc(ib.stop) || 'DOH'}</span>
+          <span class="leg-arrow">-&gt;</span>
+          <span class="leg-time">${esc(ib.arrive) || '-'}</span>
+          <span class="leg-duration">${esc(ib.duration)}</span>
+          <span class="leg-route">${esc(ib.route)}</span>
         </div>
       </div>`;
   }
@@ -477,24 +502,24 @@
     if (sorted.length === 0) return;
     
     sorted.forEach((r, i) => {
-      const name = AIRPORT_NAMES[r.origin] || r.origin;
+      const name = esc(AIRPORT_NAMES[r.origin] || r.origin);
       const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
       const card = document.createElement('div');
       card.className = 'result-card' + (i === 0 ? ' winner' : '');
-      card.id = `live-${r.origin}`;
+      card.id = `live-${esc(r.origin)}`;
       card.innerHTML = `
         <div class="result-header">
           <div class="result-left">
             <div class="result-rank">#${i + 1}</div>
             <div>
-              <div class="result-origin">${r.origin}</div>
-              <div class="result-route">${name} -> ${resolvedDest} via DOH</div>
+              <div class="result-origin">${esc(r.origin)}</div>
+              <div class="result-route">${name} -&gt; ${esc(resolvedDest)} via DOH</div>
             </div>
           </div>
           <div class="result-price">
-            <div class="result-price-usd">$${Number(r.cheapestUSD).toLocaleString()}</div>
-            <div class="result-price-qar">QAR ${Number(qar).toLocaleString()}</div>
-            <div class="result-price-local">${r.cheapestLocal?.currency || ''} ${r.cheapestLocal?.amount?.toLocaleString() || ''}</div>
+            <div class="result-price-usd">$${fmt(r.cheapestUSD)}</div>
+            <div class="result-price-qar">QAR ${fmt(qar)}</div>
+            <div class="result-price-local">${esc(r.cheapestLocal?.currency)} ${r.cheapestLocal?.amount ? fmt(r.cheapestLocal.amount) : ''}</div>
           </div>
         </div>
         ${flightDetailsHTML(r)}`;
@@ -509,7 +534,10 @@
 
     if (!destinationRaw) { alert('Enter a destination'); return; }
     if (!departVal || !returnVal) { alert('Select dates'); return; }
-    if (new Date(returnVal) <= new Date(departVal)) { alert('Return must be after departure'); return; }
+    const dDate = new Date(departVal + 'T00:00:00');
+    const rDate = new Date(returnVal + 'T00:00:00');
+    if (isNaN(dDate.getTime()) || isNaN(rDate.getTime())) { alert('Invalid dates selected'); return; }
+    if (rDate <= dDate) { alert('Return must be after departure'); return; }
 
     const origins = [];
     document.querySelectorAll('.origin-chip input:checked').forEach(cb => origins.push(cb.value));
@@ -581,7 +609,7 @@
       
       // Update progress row
       if (data.found && data.cheapestUSD) {
-        setRowState(data.origin, 'done', `$${Number(data.cheapestUSD).toLocaleString()}`, `$${Number(data.cheapestUSD).toLocaleString()}`);
+        setRowState(data.origin, 'done', `$${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
       } else {
         setRowState(data.origin, 'done-noresult', 'No flights found');
       }
@@ -593,7 +621,7 @@
     eventSource.addEventListener('doh_result', (e) => {
       const data = JSON.parse(e.data);
       if (data.found && data.cheapestUSD) {
-        setRowState('DOH', 'done', `$${Number(data.cheapestUSD).toLocaleString()}`, `$${Number(data.cheapestUSD).toLocaleString()}`);
+        setRowState('DOH', 'done', `$${fmt(data.cheapestUSD)}`, `$${fmt(data.cheapestUSD)}`);
       } else {
         setRowState('DOH', 'done-noresult', 'No direct flights');
       }
@@ -636,15 +664,15 @@
         // Winner side
         document.getElementById('compWinnerOrigin').textContent = winner.origin;
         document.getElementById('compWinnerRoute').textContent = `${winnerName} via DOH`;
-        document.getElementById('compWinnerPrice').textContent = `$${Number(winner.cheapestUSD).toLocaleString()}`;
-        document.getElementById('compWinnerQAR').textContent = `QAR ${Number(winnerQAR).toLocaleString()}`;
+        document.getElementById('compWinnerPrice').textContent = `$${fmt(winner.cheapestUSD)}`;
+        document.getElementById('compWinnerQAR').textContent = `QAR ${fmt(winnerQAR)}`;
 
         // DOH side
         if (doh && doh.found && doh.cheapestUSD) {
           const dohQAR = doh.cheapestQAR || Math.round(doh.cheapestUSD / 0.275);
           document.getElementById('compDohRoute').textContent = `Doha non-stop`;
-          document.getElementById('compDohPrice').textContent = `$${Number(doh.cheapestUSD).toLocaleString()}`;
-          document.getElementById('compDohQAR').textContent = `QAR ${Number(dohQAR).toLocaleString()}`;
+          document.getElementById('compDohPrice').textContent = `$${fmt(doh.cheapestUSD)}`;
+          document.getElementById('compDohQAR').textContent = `QAR ${fmt(dohQAR)}`;
 
           // Savings calculation
           const winnerUSD = Number(winner.cheapestUSD);
@@ -655,10 +683,10 @@
 
           if (diff > 20) {
             savingsEl.className = 'comparison-savings cheaper';
-            savingsEl.innerHTML = `${winner.origin} saves <strong>$${Math.round(diff).toLocaleString()}</strong> (${pct}% cheaper)`;
+            savingsEl.innerHTML = `${esc(winner.origin)} saves <strong>$${fmt(Math.round(diff))}</strong> (${pct}% cheaper)`;
           } else if (diff < -20) {
             savingsEl.className = 'comparison-savings pricier';
-            savingsEl.innerHTML = `DOH is <strong>$${Math.round(Math.abs(diff)).toLocaleString()}</strong> cheaper (${pct}%)`;
+            savingsEl.innerHTML = `DOH is <strong>$${fmt(Math.round(Math.abs(diff)))}</strong> cheaper (${pct}%)`;
           } else {
             savingsEl.className = 'comparison-savings same';
             savingsEl.innerHTML = `Prices are similar`;
@@ -677,7 +705,7 @@
       // ── Render full results list ──
       if (sorted.length > 0) {
         sorted.forEach((r, i) => {
-          const name = AIRPORT_NAMES[r.origin] || r.origin;
+          const name = esc(AIRPORT_NAMES[r.origin] || r.origin);
           const qar = r.cheapestQAR || Math.round(r.cheapestUSD / 0.275);
           const card = document.createElement('div');
           card.className = 'result-card' + (i === 0 ? ' winner' : '');
@@ -686,21 +714,21 @@
               <div class="result-left">
                 <div class="result-rank">#${i + 1}</div>
                 <div>
-                  <div class="result-origin">${r.origin}</div>
-                  <div class="result-route">${name} -> ${resolvedDest} via DOH</div>
+                  <div class="result-origin">${esc(r.origin)}</div>
+                  <div class="result-route">${name} -&gt; ${esc(resolvedDest)} via DOH</div>
                 </div>
               </div>
               <div class="result-price">
-                <div class="result-price-usd">$${Number(r.cheapestUSD).toLocaleString()}</div>
-                <div class="result-price-qar">QAR ${Number(qar).toLocaleString()}</div>
-                <div class="result-price-local">${r.cheapestLocal?.currency || ''} ${r.cheapestLocal?.amount?.toLocaleString() || ''}</div>
+                <div class="result-price-usd">$${fmt(r.cheapestUSD)}</div>
+                <div class="result-price-qar">QAR ${fmt(qar)}</div>
+                <div class="result-price-local">${esc(r.cheapestLocal?.currency)} ${r.cheapestLocal?.amount ? fmt(r.cheapestLocal.amount) : ''}</div>
               </div>
             </div>
             ${flightDetailsHTML(r)}`;
           section.appendChild(card);
         });
       } else {
-        section.innerHTML = '<div class="result-card"><div class="result-header"><div class="result-left"><div class="result-origin">No flights found for any origin</div></div></div></div>';
+        section.innerHTML = '<div class="result-card"><div class="result-header"><div class="result-left"><div class="result-origin">No Qatar Airways Business Class flights found</div></div></div></div>';
       }
 
       document.getElementById('notesSection').style.display = 'block';
@@ -712,6 +740,16 @@
       eventSource.close();
       btn.disabled = false;
       btn.textContent = 'Search Flights';
+      // Show error only if search didn't already complete normally
+      const resultsVisible = document.getElementById('resultsSection').style.display !== 'none';
+      if (!resultsVisible) {
+        const errDiv = document.createElement('div');
+        errDiv.className = 'result-card';
+        errDiv.style.borderColor = '#e74c3c';
+        errDiv.innerHTML = '<div class="result-header"><div class="result-left"><div class="result-origin" style="color:#e74c3c">Search failed</div></div></div><div style="padding:8px 0;font-size:13px;color:#999">Connection lost. Please try again.</div>';
+        document.getElementById('liveResultsSection').style.display = 'block';
+        document.getElementById('liveResultsSection').appendChild(errDiv);
+      }
     };
   }
 </script>

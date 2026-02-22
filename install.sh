@@ -7,9 +7,11 @@ echo "QR Flight Search - Ubuntu Setup Script"
 echo "========================================"
 echo ""
 
-# Check if running as root
-if [ "$EUID" -eq 0 ]; then
-  echo "[!] Running as root - this is fine for setup"
+# Must run as root (needed for apt, swap, fstab)
+if [ "$EUID" -ne 0 ]; then
+  echo "[X] This script must be run as root (or with sudo)."
+  echo "    Run: sudo ./install.sh"
+  exit 1
 fi
 
 # Detect OS
@@ -90,24 +92,41 @@ echo "     Total RAM: ${TOTAL_RAM_MB}MB"
 if [ "$TOTAL_RAM_MB" -lt 1024 ]; then
   echo "     [!] Low RAM detected. Checking swap..."
   
-  SWAP_TOTAL=$(free -m | awk '/Swap:/ {print $2}')
-  
-  if [ "$SWAP_TOTAL" -lt 1000 ]; then
+  # Use /proc/meminfo for locale-safe swap check
+  SWAP_TOTAL_KB=$(grep '^SwapTotal' /proc/meminfo | awk '{print $2}')
+  SWAP_TOTAL_MB=$((SWAP_TOTAL_KB / 1024))
+
+  if [ "$SWAP_TOTAL_MB" -lt 1000 ]; then
     echo "     Creating 2GB swap file..."
-    
+
     if [ -f /swapfile ]; then
-      echo "     /swapfile exists but swap not active. Enabling..."
-      swapon /swapfile 2>/dev/null || echo "     Swap already enabled or failed"
+      echo "     /swapfile exists. Enabling..."
+      swapon /swapfile 2>/dev/null || true
     else
-      fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
-      chmod 600 /swapfile
-      mkswap /swapfile
-      swapon /swapfile
-      echo "/swapfile none swap sw 0 0" >> /etc/fstab
-      echo "     Swap file created and enabled"
+      # Try fallocate first; fall back to dd if it fails (e.g. on some filesystems)
+      if fallocate -l 2G /swapfile 2>/dev/null; then
+        echo "     Created swap with fallocate"
+      else
+        echo "     fallocate not supported, using dd (slower)..."
+        dd if=/dev/zero of=/swapfile bs=1M count=2048 status=progress
+      fi
+
+      # Verify the file was created before proceeding
+      if [ ! -f /swapfile ] || [ ! -s /swapfile ]; then
+        echo "     [!] Failed to create swap file. Skipping swap setup."
+      else
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        # Add to fstab only if not already present
+        if ! grep -q '/swapfile' /etc/fstab; then
+          echo "/swapfile none swap sw 0 0" >> /etc/fstab
+        fi
+        echo "     Swap file created and enabled"
+      fi
     fi
   else
-    echo "     Swap already configured: ${SWAP_TOTAL}MB"
+    echo "     Swap already configured: ${SWAP_TOTAL_MB}MB"
   fi
 else
   echo "     [OK] Sufficient RAM, no swap needed"
